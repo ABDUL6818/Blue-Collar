@@ -202,13 +202,8 @@ pub fn do_release(env: &Env, caller: &Address, id: Symbol) -> Result<(), Contrac
     let mut record = load_escrow(env, &id).ok_or(ContractError::EscrowNotFound)?;
     require_active(&record)?;
 
-    let is_depositor = record.depositor == *caller;
-    let is_admin = load_role_members(env, ROLE_ADMIN_ID)
-        .iter()
-        .any(|m| m == *caller);
-    if !is_depositor && !is_admin {
-        return Err(ContractError::NotAuthorized);
-    }
+    let admins = load_role_members(env, ROLE_ADMIN_ID);
+    helpers::require_owner_or_role(caller, &record.depositor, &admins)?;
 
     // --- Interactions ---
     // Transfer first: if this panics, Soroban rolls back the whole
@@ -280,10 +275,7 @@ pub fn do_dispute(env: &Env, caller: &Address, id: Symbol) -> Result<(), Contrac
     caller.require_auth();
 
     let mut record = load_escrow(env, &id).ok_or(ContractError::EscrowNotFound)?;
-    let is_party = record.depositor == *caller || record.beneficiary == *caller;
-    if !is_party {
-        return Err(ContractError::NotAParty);
-    }
+    helpers::require_party(caller, &record.depositor, &record.beneficiary)?;
     require_active(&record)?;
 
     // --- Effects ---
