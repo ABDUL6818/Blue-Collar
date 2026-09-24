@@ -25,6 +25,7 @@
     "admin:create": "tsx src/commands/create-admin.ts",
     "db:reset": "tsx src/commands/reset-db.ts",
     "openapi:generate": "tsx src/scripts/generate-openapi.ts",
+    "mailer:preview": "tsx src/scripts/preview-email-templates.ts",
     "check:cycles": "madge --circular --extensions ts src/",
     "lint": "eslint \"src/**/*.ts\"",
     "format": "prettier --write \"src/**/*.ts\"",
