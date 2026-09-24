@@ -1,8 +1,33 @@
 //! # Escrow — Business Logic
 //!
 //! State-machine transitions, access-control guards, and RBAC helpers.
-//! All functions follow the Checks → Effects → Interactions (CEI) pattern.
-//! Token transfers (Interactions) only happen after storage is updated (Effects).
+//!
+//! ## Ordering convention (Checks → Interactions → Effects)
+//!
+//! Soroban does not have classic EVM-style reentrancy (there is no external
+//! callback into this contract mid-call), but the *wrong* ordering can still
+//! leave storage in a state that no longer matches reality: if we mark an
+//! escrow `Released`/`Cancelled` *before* the token transfer runs, and the
+//! transfer then fails/panics, na\u{efve} host implementations or future
+//! refactors could persist that state change while the funds never moved.
+//!
+//! To make this class of bug structurally impossible, every lifecycle
+//! function below performs the external token transfer **before** writing
+//! the new escrow state to storage:
+//!
+//! 1. **Checks** — auth, role, and state-machine guards.
+//! 2. **Interactions** — the external `token::Client::transfer` call. Soroban
+//!    aborts (and rolls back *all* storage writes for the invocation,
+//!    including ones already made) if this panics, so a failed transfer can
+//!    never be followed by a state write in the same invocation.
+//! 3. **Effects** — only after the transfer succeeds do we persist the new
+//!    `EscrowState` and emit the event.
+//!
+//! This is the reverse of the classic EVM CEI ordering (which exists to
+//! defend against reentrancy) precisely because Soroban's risk is
+//! "state says X happened but the transfer didn't", not reentrancy. New
+//! contract authors: keep external calls before the state write they
+//! describe.
 
 use bluecollar_types::{helpers, ContractError};
 use soroban_sdk::{symbol_short, token, Address, Env, Symbol, Vec};
@@ -185,18 +210,21 @@ pub fn do_release(env: &Env, caller: &Address, id: Symbol) -> Result<(), Contrac
         return Err(ContractError::NotAuthorized);
     }
 
-    // --- Effects ---
-    record.state = EscrowState::Released;
-    record.updated_at = env.ledger().sequence();
-    save_escrow(env, &record);
-
     // --- Interactions ---
+    // Transfer first: if this panics, Soroban rolls back the whole
+    // invocation, so the state below is never written unless the funds
+    // actually moved.
     let token = token::Client::new(env, &record.token);
     token.transfer(
         &env.current_contract_address(),
         &record.beneficiary,
         &record.amount,
     );
+
+    // --- Effects ---
+    record.state = EscrowState::Released;
+    record.updated_at = env.ledger().sequence();
+    save_escrow(env, &record);
 
     env.events().publish(
         (symbol_short!("Released"), id),
@@ -225,11 +253,6 @@ pub fn do_cancel(env: &Env, caller: &Address, id: Symbol) -> Result<(), Contract
         return Err(ContractError::NotAuthorized);
     }
 
-    // --- Effects ---
-    record.state = EscrowState::Cancelled;
-    record.updated_at = env.ledger().sequence();
-    save_escrow(env, &record);
-
     // --- Interactions ---
     let token = token::Client::new(env, &record.token);
     token.transfer(
@@ -237,6 +260,11 @@ pub fn do_cancel(env: &Env, caller: &Address, id: Symbol) -> Result<(), Contract
         &record.depositor,
         &record.amount,
     );
+
+    // --- Effects ---
+    record.state = EscrowState::Cancelled;
+    record.updated_at = env.ledger().sequence();
+    save_escrow(env, &record);
 
     env.events().publish(
         (symbol_short!("Cancelled"), id),
@@ -286,12 +314,17 @@ pub fn do_resolve(
     let mut record = load_escrow(env, &id).ok_or(ContractError::EscrowNotFound)?;
     require_disputed(&record)?;
 
-    // --- Effects ---
     let recipient = if release_to_beneficiary {
         record.beneficiary.clone()
     } else {
         record.depositor.clone()
     };
+
+    // --- Interactions ---
+    let token = token::Client::new(env, &record.token);
+    token.transfer(&env.current_contract_address(), &recipient, &record.amount);
+
+    // --- Effects ---
     record.state = if release_to_beneficiary {
         EscrowState::Released
     } else {
@@ -299,10 +332,6 @@ pub fn do_resolve(
     };
     record.updated_at = env.ledger().sequence();
     save_escrow(env, &record);
-
-    // --- Interactions ---
-    let token = token::Client::new(env, &record.token);
-    token.transfer(&env.current_contract_address(), &recipient, &record.amount);
 
     env.events().publish(
         (symbol_short!("Resolved"), id),
