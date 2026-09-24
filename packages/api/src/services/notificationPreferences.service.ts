@@ -1,5 +1,13 @@
 import { db } from "../db.js";
 
+/**
+ * Notification-preferences domain logic. Previously lived in the generic
+ * `helpers/notificationPrefs.ts` bucket; moved here alongside
+ * `notification.service.ts` since both operate on the same domain
+ * (notification delivery/preferences) rather than being an unrelated
+ * grab-bag utility.
+ */
+
 export async function seedDefaultPreferences(userId: string) {
   return db.notificationPreferences.upsert({
     where: { userId },
