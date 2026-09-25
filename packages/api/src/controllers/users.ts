@@ -11,24 +11,10 @@ export async function updateProfile(req: Request, res: Response) {
   const userId = req.user?.id
   if (!userId) return res.status(HttpStatus.UNAUTHORIZED).json({ status: 'error', message: ErrorMessages.UNAUTHORIZED, code: HttpStatus.UNAUTHORIZED })
 
-  const { firstName, lastName, phone, bio, onboardingCompleted } = req.body as {
-    firstName?: string
-    lastName?: string
-    phone?: string
-    bio?: string
-    onboardingCompleted?: boolean
-  }
-
   try {
     const user = await db.user.update({
       where: { id: userId },
-      data: {
-        ...(firstName !== undefined && { firstName }),
-        ...(lastName !== undefined && { lastName }),
-        ...(phone !== undefined && { phone }),
-        ...(bio !== undefined && { bio }),
-        ...(onboardingCompleted !== undefined && { onboardingCompleted }),
-      },
+      data: req.body,
     })
     return res.json({ data: sanitizeUser(user), status: 'success', code: HttpStatus.OK })
   } catch (error) {
@@ -62,14 +48,8 @@ export async function changePassword(req: Request, res: Response) {
   const userId = req.user?.id
   if (!userId) return res.status(HttpStatus.UNAUTHORIZED).json({ status: 'error', message: ErrorMessages.UNAUTHORIZED, code: HttpStatus.UNAUTHORIZED })
 
-  const { currentPassword, newPassword } = req.body as { currentPassword?: string; newPassword?: string }
-
-  if (!currentPassword || !newPassword) {
-    return res.status(HttpStatus.BAD_REQUEST).json({ status: 'error', message: ErrorMessages.CURRENT_PASSWORD_REQUIRED, code: HttpStatus.BAD_REQUEST })
-  }
-
   try {
-    await userService.changePassword(userId, currentPassword, newPassword)
+    await userService.changePassword(userId, req.body.currentPassword, req.body.newPassword)
     return res.json({ status: 'success', message: 'Password updated', code: HttpStatus.OK })
   } catch (error: any) {
     if (error?.statusCode) {
@@ -101,13 +81,8 @@ export async function savePushSubscription(req: Request, res: Response) {
   const userId = req.user?.id
   if (!userId) return res.status(HttpStatus.UNAUTHORIZED).json({ status: 'error', message: ErrorMessages.UNAUTHORIZED, code: HttpStatus.UNAUTHORIZED })
 
-  const { endpoint, keys } = req.body
-  if (!endpoint || !keys?.auth || !keys?.p256dh) {
-    return res.status(HttpStatus.BAD_REQUEST).json({ status: 'error', message: ErrorMessages.INVALID_PUSH_SUBSCRIPTION, code: HttpStatus.BAD_REQUEST })
-  }
-
   try {
-    const subscription = await userService.savePushSubscription(userId, { endpoint, keys })
+    const subscription = await userService.savePushSubscription(userId, req.body)
     return res.json({ data: subscription, status: 'success', code: HttpStatus.CREATED })
   } catch (error) {
     logger.error({ err: error }, '[savePushSubscription] error')
@@ -119,13 +94,8 @@ export async function deletePushSubscription(req: Request, res: Response) {
   const userId = req.user?.id
   if (!userId) return res.status(HttpStatus.UNAUTHORIZED).json({ status: 'error', message: ErrorMessages.UNAUTHORIZED, code: HttpStatus.UNAUTHORIZED })
 
-  const { endpoint } = req.body
-  if (!endpoint) {
-    return res.status(HttpStatus.BAD_REQUEST).json({ status: 'error', message: ErrorMessages.ENDPOINT_REQUIRED, code: HttpStatus.BAD_REQUEST })
-  }
-
   try {
-    await userService.deletePushSubscription(userId, endpoint)
+    await userService.deletePushSubscription(userId, req.body.endpoint)
     return res.json({ status: 'success', message: 'Unsubscribed', code: HttpStatus.OK })
   } catch (error) {
     logger.error({ err: error }, '[deletePushSubscription] error')
