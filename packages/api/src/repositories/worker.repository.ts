@@ -154,9 +154,77 @@ export class WorkerRepository implements IWorkerRepository {
       }
     }
 
-    // Fetch workers with all relations
-    let workers = await db.worker.findMany({
-      where,
+    // Handle rating filtering with subquery to avoid N+1
+    if (minRating !== undefined || maxRating !== undefined) {
+      // Get worker IDs with average rating in range
+      const havingClause: Prisma.ReviewScalarWhereWithAggregatesInput = {}
+      if (minRating !== undefined) {
+        havingClause.gte = minRating
+      }
+      if (maxRating !== undefined) {
+        havingClause.lte = maxRating
+      }
+
+      const qualifiedIds = await db.review.groupBy({
+        by: ['workerId'],
+        _avg: { rating: true },
+        having: {
+          rating: {
+            _avg: havingClause,
+          },
+        },
+      })
+
+      // Filter workers by those with qualifying ratings
+      const qualifiedWorkerIds = qualifiedIds.map(r => r.workerId)
+      if (qualifiedWorkerIds.length > 0) {
+        where.id = { in: qualifiedWorkerIds }
+      } else {
+        // No workers meet rating criteria, return empty result
+        return { data: [], total: 0, hasMore: false }
+      }
+    }
+
+    // Handle geo filtering with bounding box to reduce dataset
+    let geoWhere: Prisma.WorkerWhereInput = {}
+    if (lat !== undefined && lng !== undefined && radius) {
+      // Bounding box approximation (1 degree ≈ 111 km)
+      const delta = radius / 111
+      geoWhere = {
+        location: {
+          lat: { gte: lat - delta, lte: lat + delta },
+          lng: { gte: lng - delta, lte: lng + delta },
+        },
+      }
+    }
+
+    // Combine all where conditions
+    const finalWhere: Prisma.WorkerWhereInput = {
+      AND: [where, geoWhere].filter(Boolean),
+    }
+
+    // Build orderBy based on sort criteria
+    let orderBy: Prisma.WorkerOrderByWithRelationInput = { createdAt: 'desc' }
+    
+    // For complex sorts that require aggregation, we need to handle differently
+    const requiresPostProcessing = sortBy === 'rating' || sortBy === 'distance' || sortBy === 'reviews' || sortBy === 'relevance'
+
+    if (!requiresPostProcessing) {
+      switch (sortBy) {
+        case 'newest':
+          orderBy = { createdAt: 'desc' }
+          break
+        default:
+          orderBy = { createdAt: 'desc' }
+      }
+    }
+
+    // Get total count for pagination
+    const total = await db.worker.count({ where: finalWhere })
+
+    // Fetch workers with needed relations in a single optimized query
+    const workers = await db.worker.findMany({
+      where: finalWhere,
       include: {
         category: true,
         curator: true,
@@ -166,28 +234,21 @@ export class WorkerRepository implements IWorkerRepository {
       },
       skip,
       take: take + 1, // +1 to determine hasMore
+      orderBy,
     })
 
-    // Apply geo filtering if provided
+    // Apply exact geo filtering if coordinates provided
+    let filteredWorkers = workers
     if (lat !== undefined && lng !== undefined) {
-      workers = workers.filter(w => {
+      filteredWorkers = workers.filter(w => {
         if (!w.location?.lat || !w.location?.lng) return false
         const dist = this.haversine(lat, lng, w.location.lat, w.location.lng)
         return dist <= radius
       })
     }
 
-    // Apply rating filtering and calculate avg rating
-    if (minRating !== undefined || maxRating !== undefined) {
-      workers = workers.filter(w => {
-        if (w.reviews.length === 0) return false
-        const avg = w.reviews.reduce((sum, r) => sum + r.rating, 0) / w.reviews.length
-        return (!minRating || avg >= minRating) && (!maxRating || avg <= maxRating)
-      })
-    }
-
-    // Map to include computed fields
-    const enriched = workers.map(w => {
+    // Calculate computed fields
+    const enriched = filteredWorkers.map(w => {
       const avgRating = w.reviews.length > 0
         ? w.reviews.reduce((sum, r) => sum + r.rating, 0) / w.reviews.length
         : 0
@@ -203,28 +264,29 @@ export class WorkerRepository implements IWorkerRepository {
       }
     })
 
-    // Sort
-    enriched.sort((a, b) => {
-      switch (sortBy) {
-        case 'rating':
-          return b.avgRating - a.avgRating
-        case 'distance':
-          if (a.distanceKm === undefined) return 1
-          if (b.distanceKm === undefined) return -1
-          return a.distanceKm - b.distanceKm
-        case 'reviews':
-          return b.reviewCount - a.reviewCount
-        case 'newest':
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        case 'relevance':
-        default:
-          return (b.relevanceScore || 0) - (a.relevanceScore || 0)
-      }
-    })
+    // Apply sorting that requires computed fields
+    let sortedEnriched = enriched
+    if (requiresPostProcessing) {
+      sortedEnriched.sort((a, b) => {
+        switch (sortBy) {
+          case 'rating':
+            return b.avgRating - a.avgRating
+          case 'distance':
+            if (a.distanceKm === undefined) return 1
+            if (b.distanceKm === undefined) return -1
+            return a.distanceKm - b.distanceKm
+          case 'reviews':
+            return b.reviewCount - a.reviewCount
+          case 'relevance':
+          default:
+            return (b.relevanceScore || 0) - (a.relevanceScore || 0)
+        }
+      })
+    }
 
-    const hasMore = enriched.length > take
-    const data = enriched.slice(0, take)
-    const total = await db.worker.count({ where })
+    // Apply pagination after sorting
+    const hasMore = sortedEnriched.length > take
+    const data = sortedEnriched.slice(0, take)
 
     return { data, total, hasMore }
   }
