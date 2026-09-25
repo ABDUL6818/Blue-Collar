@@ -156,6 +156,9 @@ import {
   CONTACT,
   GENERAL_API,
   BOOKINGS,
+  JOBS_WRITE,
+  DISPUTES_WRITE,
+  PAYMENTS_WRITE,
 } from '../config/rateLimits.js'
 
 /** Strict auth limiter — login, register, forgot-password */
@@ -178,3 +181,12 @@ export const generalRateLimit = createRateLimiter(GENERAL_API)
 
 /** Booking request limiter */
 export const bookingRateLimit = createRateLimiter(BOOKINGS)
+
+/** Job mutation limiter — create/update/delete/apply/renew */
+export const jobsWriteRateLimiter = createRateLimiter(JOBS_WRITE)
+
+/** Dispute mutation limiter — create/resolve */
+export const disputesWriteRateLimiter = createRateLimiter(DISPUTES_WRITE)
+
+/** Payment mutation limiter — tips/escrow/fee updates */
+export const paymentsWriteRateLimiter = createRateLimiter(PAYMENTS_WRITE)
