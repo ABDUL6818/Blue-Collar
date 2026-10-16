@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { CheckCircle2, AlertCircle, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FieldError } from "./FormError";
 
 interface Props {
   label: string;
@@ -23,17 +24,15 @@ export default function FormField({ label, id, error, hint, isValid, className, 
         {/* success / error icon overlay */}
         {(isValid || error) && (
           <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
-            {error
-              ? <AlertCircle size={15} className="text-red-500" />
-              : <CheckCircle2 size={15} className="text-green-500" />}
+            {error ? (
+              <AlertCircle size={15} className="text-red-500" />
+            ) : (
+              <CheckCircle2 size={15} className="text-green-500" />
+            )}
           </span>
         )}
       </div>
-      {error && (
-        <p className="flex items-center gap-1 text-xs text-red-500" role="alert">
-          {error}
-        </p>
-      )}
+      <FieldError message={error} />
       {!error && hint && (
         <p className="flex items-center gap-1 text-xs text-gray-400">
           <Info size={11} />

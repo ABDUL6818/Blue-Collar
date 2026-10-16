@@ -186,7 +186,7 @@ describe('Accessibility (WCAG 2.1 AA)', () => {
   })
 
   it('FormField has no violations', async () => {
-    const { default: FormField } = await import('@/components/FormField')
+    const { default: FormField } = await import('@/components/Form/FormField')
     await expectNoViolations(<FormField label="Email address" name="email" type="email" />)
   })
 

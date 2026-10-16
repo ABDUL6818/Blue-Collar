@@ -40,3 +40,23 @@ export default function FormError({ message, id, className }: FormErrorProps) {
     </div>
   );
 }
+
+interface FieldErrorProps {
+  /** The field-level error text. Renders nothing when falsy. */
+  message?: string | null;
+  className?: string;
+}
+
+/**
+ * Inline error text shown beneath a single field (used by <FormField>).
+ * Use <FormError> for form-level, submission errors instead.
+ */
+export function FieldError({ message, className }: FieldErrorProps) {
+  if (!message) return null;
+
+  return (
+    <p className={cn("flex items-center gap-1 text-xs text-red-500", className)} role="alert">
+      {message}
+    </p>
+  );
+}

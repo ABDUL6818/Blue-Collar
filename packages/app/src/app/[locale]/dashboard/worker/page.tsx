@@ -7,8 +7,8 @@ import { DashboardTableSkeleton } from "@/components/Skeleton";
 import {
   WorkerAnalyticsFilters,
   WorkerAnalyticsSummary,
-  WorkerAnalyticsCharts,
 } from "@/components/Dashboard";
+import { LazyWorkerAnalyticsCharts } from "@/components/Dashboard/LazyWorkerAnalyticsCharts";
 import { useWorkerAnalytics } from "@/hooks/useWorkerAnalytics";
 
 export default function WorkerPersonalDashboardPage() {
@@ -90,7 +90,7 @@ export default function WorkerPersonalDashboardPage() {
       ) : data ? (
         <div className="space-y-6">
           <WorkerAnalyticsSummary data={data} />
-          <WorkerAnalyticsCharts data={data} />
+          <LazyWorkerAnalyticsCharts data={data} />
         </div>
       ) : (
         <div className="flex items-center justify-center rounded-xl border bg-white py-16 dark:border-gray-700 dark:bg-gray-900">

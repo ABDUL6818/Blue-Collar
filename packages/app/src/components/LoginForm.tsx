@@ -9,8 +9,8 @@ import { Loader2 } from "lucide-react";
 import { loginSchema, type LoginInput, authApi } from "@/lib/auth";
 import { useAuth } from "@/context/AuthContext";
 import type { AuthUser } from "@/context/AuthContext";
-import FormField from "@/components/FormField";
-import FormError from "@/components/FormError";
+import FormField from "@/components/Form/FormField";
+import FormError from "@/components/Form/FormError";
 import { cn } from "@/lib/utils";
 
 export default function LoginForm() {
