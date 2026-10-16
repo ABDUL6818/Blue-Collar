@@ -1,6 +1,6 @@
 import { bookmarkRepository as defaultBookmarkRepository } from '@/repositories/bookmark.repository.js'
 import { AppError } from '@/utils/AppError.js'
-import { updateBookmarkCount } from './analytics.service.js'
+import { updateBookmarkCount } from './analytics/index.js'
 import type { BookmarkServiceDeps } from '@/container/types.js'
 
 // ── Factory ───────────────────────────────────────────────────────────────────
