@@ -13,55 +13,24 @@
 
 #![cfg(test)]
 
-use soroban_sdk::{testutils::Address as _, token, Address, BytesN, Env, String, Symbol};
+use soroban_sdk::{testutils::Address as _, token, Address, Env, String, Symbol};
 
-use bluecollar_market::MarketContractClient;
 use bluecollar_registry::RegistryContractClient;
+
+mod common;
+use common::{deploy_market, deploy_token, zero_hash};
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-fn zero_hash(env: &Env) -> BytesN<32> {
-    BytesN::from_array(env, &[0u8; 32])
-}
 
-/// Deploy and initialise a fresh Registry contract.
-/// Grants all management roles to `admin` so integration tests can exercise
-/// the full API (add_curator, etc.).
+/// Registry with every management role granted to `admin`, so integration tests
+/// can exercise the full API (add_curator, etc.).
 fn deploy_registry<'a>(env: &'a Env, admin: &Address) -> RegistryContractClient<'a> {
-    let contract_id = env.register_contract(None, bluecollar_registry::RegistryContract);
-    let client = RegistryContractClient::new(env, &contract_id);
-    client.initialize(admin);
-    // Grant the same roles that the registry unit-test fixture bootstraps.
+    // The shared helper grants curator_mgr; add the remaining management roles.
+    let client = common::deploy_registry(env, admin);
     client.grant_role(admin, &Symbol::new(env, "pauser"), admin);
-    client.grant_role(admin, &Symbol::new(env, "curator_mgr"), admin);
     client.grant_role(admin, &Symbol::new(env, "rep_mgr"), admin);
     client.grant_role(admin, &Symbol::new(env, "upgrader"), admin);
-    client
-}
-
-/// Deploy a mock token (soroban-sdk built-in) and mint `amount` to `to`.
-fn deploy_token<'a>(
-    env: &'a Env,
-    admin: &Address,
-    to: &Address,
-    amount: i128,
-) -> token::Client<'a> {
-    let token_id = env.register_stellar_asset_contract_v2(admin.clone());
-    let admin_client = token::StellarAssetClient::new(env, &token_id.address());
-    admin_client.mint(to, &amount);
-    token::Client::new(env, &token_id.address())
-}
-
-/// Deploy and initialise a fresh Market contract.
-fn deploy_market<'a>(
-    env: &'a Env,
-    admin: &Address,
-    fee_bps: u32,
-    fee_recipient: &Address,
-) -> MarketContractClient<'a> {
-    let contract_id = env.register_contract(None, bluecollar_market::MarketContract);
-    let client = MarketContractClient::new(env, &contract_id);
-    client.initialize(admin, &fee_bps, fee_recipient);
     client
 }
 

@@ -15,7 +15,9 @@ use soroban_sdk::{testutils::Address as _, token, Address, Env, String, Symbol};
 
 use bluecollar_dispute::DisputeOutcome;
 
-use common::{deploy_dispute, deploy_escrow, deploy_insurance_pool, deploy_token, mint};
+use common::{
+    deploy_dispute, deploy_escrow_with_arbitrator, deploy_insurance_pool, deploy_token, mint,
+};
 
 #[test]
 fn job_lost_at_arbitration_pays_out_an_insurance_claim() {
@@ -32,8 +34,7 @@ fn job_lost_at_arbitration_pays_out_an_insurance_claim() {
     let token = deploy_token(&env, &admin, &payer, 100_000);
     mint(&env, &token.address, &underwriter, 100_000);
 
-    let escrow = deploy_escrow(&env, &admin);
-    escrow.grant_role(&admin, &Symbol::new(&env, "arbitrator"), &arbitrator);
+    let escrow = deploy_escrow_with_arbitrator(&env, &admin, &arbitrator);
     let dispute = deploy_dispute(&env, &admin, &arbitrator);
     let pool = deploy_insurance_pool(&env, &admin, &token.address, 500, &claims_mgr);
 
