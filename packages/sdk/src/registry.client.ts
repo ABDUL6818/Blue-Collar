@@ -7,7 +7,7 @@ import type { SdkConfig } from './types.js';
 import { SdkError } from './horizon.client.js';
 import { SOROBAN_RPC_URLS } from './constants.js';
 
-export interface WorkerOnChainData {
+interface WorkerOnChainData {
   id: string;
   owner: string;
   categoryId: string;

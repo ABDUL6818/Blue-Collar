@@ -11,6 +11,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createEscrowService } from './escrow.service.js'
 import { AppError } from '../utils/AppError.js'
+import { db } from '../db.js'
+import { dispatchNotification } from './notification.service.js'
 
 // ── DB mock (for requireNotPaused) ────────────────────────────────────────────
 
@@ -59,6 +61,13 @@ const FUTURE_DATE = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7) // 7 days fro
 // ─────────────────────────────────────────────────────────────────────────────
 // createEscrow
 // ─────────────────────────────────────────────────────────────────────────────
+
+// The global setup resets mocks after each test; restore the defaults the
+// service relies on (notifications are fire-and-forget, so they must resolve).
+beforeEach(() => {
+  vi.mocked(db.systemConfig.findUnique).mockResolvedValue(null)
+  vi.mocked(dispatchNotification).mockResolvedValue(undefined)
+})
 
 describe('EscrowService.createEscrow', () => {
   it('throws when amountXlm is zero', async () => {

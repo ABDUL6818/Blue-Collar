@@ -15,11 +15,8 @@ mod benchmarks {
     extern crate std;
 
     use crate::MarketContract;
-    use soroban_sdk::{
-        testutils::{Address as _, Ledger},
-        token::StellarAssetClient,
-        Address, Env, Symbol,
-    };
+    use bluecollar_types::test_utils::{deploy_token, mocked_env, set_time};
+    use soroban_sdk::{testutils::Address as _, Address, Env, Symbol};
 
     /// Shared test harness for all market benchmarks.
     struct BenchEnv {
@@ -33,24 +30,22 @@ mod benchmarks {
 
     impl BenchEnv {
         fn new() -> Self {
-            let env = Env::default();
-            env.mock_all_auths();
+            let env = mocked_env();
 
             let admin = Address::generate(&env);
             let payer = Address::generate(&env);
             let worker = Address::generate(&env);
 
-            let token_id = env.register_stellar_asset_contract_v2(admin.clone());
-            let token_addr = token_id.address();
-
-            // Mint generous balance to payer and contract (for reward payouts).
-            StellarAssetClient::new(&env, &token_addr).mint(&payer, &100_000_000);
-
             let contract_id = env.register_contract(None, MarketContract);
             crate::MarketContractClient::new(&env, &contract_id).initialize(&admin, &100, &admin);
 
-            // Mint some tokens to the contract so it can pay out escrow releases.
-            StellarAssetClient::new(&env, &token_addr).mint(&contract_id, &100_000_000);
+            // Generous balance for the payer, and tokens for the contract so it
+            // can pay out escrow releases.
+            let token_addr = deploy_token(
+                &env,
+                &admin,
+                &[(&payer, 100_000_000), (&contract_id, 100_000_000)],
+            );
 
             BenchEnv {
                 env,
@@ -67,9 +62,7 @@ mod benchmarks {
         }
 
         fn set_time(&self, ts: u64) {
-            let mut info = self.env.ledger().get();
-            info.timestamp = ts;
-            self.env.ledger().set(info);
+            set_time(&self.env, ts);
         }
     }
 

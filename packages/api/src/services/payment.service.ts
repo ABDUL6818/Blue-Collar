@@ -15,7 +15,7 @@ export interface EscrowParams {
   expiryDate: Date
 }
 
-export interface FeeConfig {
+interface FeeConfig {
   fee_bps: number // basis points, e.g. 250 = 2.5%
 }
 

@@ -53,6 +53,27 @@ pub fn require_role(env: &Env, role: &Symbol, caller: &Address) -> Result<(), Co
     helpers::require_role(caller, &members)
 }
 
+/// Assert that `caller` is an admin and return the membership list for `role`.
+///
+/// Admin membership is read once and reused when `role` is the admin role
+/// itself, so grant/revoke of `ROLE_ADMIN` costs one role-table read instead
+/// of two.
+pub fn require_admin_for_role(
+    env: &Env,
+    caller: &Address,
+    role: &Symbol,
+) -> Result<(u64, Vec<Address>), ContractError> {
+    let admins = load_role_members(env, ROLE_ADMIN_ID);
+    helpers::require_role(caller, &admins)?;
+    let id = role_to_id(env, role);
+    let members = if id == ROLE_ADMIN_ID {
+        admins
+    } else {
+        load_role_members(env, id)
+    };
+    Ok((id, members))
+}
+
 /// Assert that the contract is not paused.
 pub fn require_not_paused(env: &Env) -> Result<(), ContractError> {
     helpers::require_not_paused(storage::is_paused(env))

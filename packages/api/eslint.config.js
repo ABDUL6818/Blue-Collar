@@ -46,7 +46,6 @@ export default [
       'src/database/seed*.ts',
       'src/commands/*.ts',
       'src/scripts/*.ts',
-      'src/monitoring/*.ts',
       'src/__tests__/**/*.ts',
     ],
     rules: {

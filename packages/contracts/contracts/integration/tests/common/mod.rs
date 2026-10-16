@@ -49,6 +49,17 @@ pub fn deploy_registry<'a>(env: &Env, admin: &Address) -> RegistryContractClient
     client
 }
 
+/// Deploy the escrow contract and grant `arbitrator` the arbitrator role.
+pub fn deploy_escrow_with_arbitrator<'a>(
+    env: &Env,
+    admin: &Address,
+    arbitrator: &Address,
+) -> EscrowContractClient<'a> {
+    let escrow = deploy_escrow(env, admin);
+    escrow.grant_role(admin, &Symbol::new(env, "arbitrator"), arbitrator);
+    escrow
+}
+
 pub fn deploy_market<'a>(
     env: &Env,
     admin: &Address,

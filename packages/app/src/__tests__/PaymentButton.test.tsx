@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
-import PaymentButton from "@/components/Payment/PaymentButton";
+import PaymentButton from "@/features/payments/components/PaymentButton";
 import { PaymentFlowProvider } from "@/context/PaymentFlowContext";
 
 vi.mock("@/components/TipModal", () => ({

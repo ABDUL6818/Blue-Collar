@@ -15,7 +15,7 @@ use soroban_sdk::{testutils::Address as _, Address, Env, String, Symbol};
 
 use bluecollar_dispute::{DisputeOutcome, DisputeStatus};
 
-use common::{deploy_dispute, deploy_escrow, deploy_market, deploy_token};
+use common::{deploy_dispute, deploy_escrow_with_arbitrator, deploy_market, deploy_token};
 
 // === Dispute contract: file -> evidence -> decide -> settle
 
@@ -160,8 +160,7 @@ fn escrow_dispute_resolved_against_worker_refunds_depositor() {
     let worker = Address::generate(&env);
 
     let token = deploy_token(&env, &admin, &payer, 100_000);
-    let escrow = deploy_escrow(&env, &admin);
-    escrow.grant_role(&admin, &Symbol::new(&env, "arbitrator"), &arbitrator);
+    let escrow = deploy_escrow_with_arbitrator(&env, &admin, &arbitrator);
 
     let id = Symbol::new(&env, "esc_dsp");
     let expiry = env.ledger().timestamp() + 86_400;

@@ -23,9 +23,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MockStellarRpcServer } from '../../clients/mockStellarRpcServer.js'
 
 // ─── Env (read at module-load time by horizon-poller.service.ts) ─────────────
-process.env.REGISTRY_CONTRACT_ID = 'CREGISTRYCONTRACTAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
-process.env.MARKET_CONTRACT_ID = 'CMARKETCONTRACTAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
-process.env.HORIZON_URL = 'https://horizon-testnet.stellar.org'
+// `vi.hoisted` runs before the hoisted imports below, so the poller module sees
+// the contract IDs. Plain assignments here would run after it had already loaded.
+vi.hoisted(() => {
+  process.env.REGISTRY_CONTRACT_ID = 'CREGISTRYCONTRACTAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+  process.env.MARKET_CONTRACT_ID = 'CMARKETCONTRACTAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+  process.env.HORIZON_URL = 'https://horizon-testnet.stellar.org'
+})
 
 const REGISTRY_CONTRACT_ID = process.env.REGISTRY_CONTRACT_ID
 const MARKET_CONTRACT_ID = process.env.MARKET_CONTRACT_ID
@@ -108,12 +112,21 @@ function makeOnchainSyncServer(registryRecords: unknown[]) {
   })
 }
 
-async function waitUntil(check: () => boolean, timeoutMs = 2000, intervalMs = 20) {
-  const start = Date.now()
-  while (!check()) {
-    if (Date.now() - start > timeoutMs) throw new Error('waitUntil: condition was not met in time')
-    await new Promise((resolve) => setTimeout(resolve, intervalMs))
+/** Let pending promise callbacks (fetch/JSON/DB mock chains) settle without wall-clock waits. */
+const flushPromises = () => new Promise<void>((resolve) => setImmediate(resolve))
+
+/**
+ * Advance the faked poller clock until `check` holds. Each step runs any due
+ * timers (the poller's `setTimeout(poll, 0)`) and then drains pending I/O mocks,
+ * so the outcome depends only on the event sequence, never on elapsed real time.
+ */
+async function driveUntil(check: () => boolean, maxSteps = 50) {
+  for (let step = 0; step < maxSteps; step++) {
+    if (check()) return
+    await vi.advanceTimersByTimeAsync(0)
+    await flushPromises()
   }
+  throw new Error('driveUntil: condition was not met within the step budget')
 }
 
 function resetDbMocks() {
@@ -137,11 +150,15 @@ describe('On-chain sync: Horizon poller → indexer → webhook (MockStellarRpcS
   beforeEach(() => {
     vi.clearAllMocks()
     resetDbMocks()
+    // Fake the poller's timers and Date so polling is driven explicitly by the test.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    vi.setSystemTime(new Date('2026-01-15T12:00:00.000Z'))
   })
 
   afterEach(() => {
     stopHorizonPoller()
     server?.uninstall()
+    vi.useRealTimers()
   })
 
   it('ingests a Horizon contract event, advances the cursor, and delivers a signed webhook', async () => {
@@ -149,7 +166,7 @@ describe('On-chain sync: Horizon poller → indexer → webhook (MockStellarRpcS
     server.install()
 
     startHorizonPoller()
-    await waitUntil(() => vi.mocked(db.webhookLog.update).mock.calls.length > 0)
+    await driveUntil(() => vi.mocked(db.webhookLog.update).mock.calls.length > 0)
 
     // Both configured contracts are polled every cycle.
     expect(db.eventIndexerCursor.upsert).toHaveBeenCalledWith(
@@ -208,15 +225,11 @@ describe('On-chain sync: Horizon poller → indexer → webhook (MockStellarRpcS
     const deliveryCall = server.calls.find(({ url }) => url === SUBSCRIBER.url)
     expect(deliveryCall).toBeDefined()
 
-    // Re-fetch the raw options from the mock to verify HMAC signature
-    const deliveryFetchCall = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.find(
-      ([url]: [string]) => url === SUBSCRIBER.url,
-    )
-    expect(deliveryFetchCall).toBeDefined()
-    const deliveryOpts = deliveryFetchCall![1]!
-    const signature = deliveryOpts.headers!['X-BlueCollar-Signature']
-    expect(verifySignature(SUBSCRIBER.secret, deliveryOpts.body!, signature)).toBe(true)
-    expect(JSON.parse(deliveryOpts.body!)).toMatchObject({ contractId: REGISTRY_CONTRACT_ID, topic: ['register'] })
+    // Verify the HMAC signature over the exact body and headers the mock recorded.
+    const signature = deliveryCall!.headers!['x-bluecollar-signature']
+    expect(signature).toBeDefined()
+    expect(verifySignature(SUBSCRIBER.secret, deliveryCall!.body!, signature)).toBe(true)
+    expect(JSON.parse(deliveryCall!.body!)).toMatchObject({ contractId: REGISTRY_CONTRACT_ID, topic: ['register'] })
 
     // Delivery outcome is recorded back onto the log — proving the full
     // on-chain-event → API-state loop closes.
@@ -227,13 +240,16 @@ describe('On-chain sync: Horizon poller → indexer → webhook (MockStellarRpcS
       }),
     )
 
-    // No calls to live testnet URLs
-    const liveNetworkCalls = server.calls.filter(
-      (c) =>
-        c.url.includes('stellar.org') ||
-        c.url.includes('horizon-testnet.stellar'),
+    // Every Horizon request was answered by the mock: one events query per
+    // configured contract, and nothing else leaked out to the network.
+    const eventQueries = server.calls.filter((c) => c.url.includes('/events'))
+    expect(eventQueries).toHaveLength(2)
+    expect(eventQueries.map((c) => c.url)).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining(`/contracts/${REGISTRY_CONTRACT_ID}/events`),
+        expect.stringContaining(`/contracts/${MARKET_CONTRACT_ID}/events`),
+      ]),
     )
-    expect(liveNetworkCalls).toHaveLength(0)
   })
 
   it('does not fan out a webhook when no subscription is registered for the mapped event', async () => {
@@ -242,8 +258,8 @@ describe('On-chain sync: Horizon poller → indexer → webhook (MockStellarRpcS
     server.install()
 
     startHorizonPoller()
-    await waitUntil(() => vi.mocked(db.webhookSubscription.findMany).mock.calls.length > 0)
-    await new Promise((resolve) => setTimeout(resolve, 100)) // let any stray delivery attempt surface
+    await driveUntil(() => vi.mocked(db.webhookSubscription.findMany).mock.calls.length > 0)
+    await vi.advanceTimersByTimeAsync(100) // let any stray delivery attempt surface
 
     expect(db.contractEvent.upsert).toHaveBeenCalled() // raw event is still indexed
     expect(db.webhookLog.create).not.toHaveBeenCalled()
@@ -255,8 +271,8 @@ describe('On-chain sync: Horizon poller → indexer → webhook (MockStellarRpcS
     server.install()
 
     startHorizonPoller()
-    await waitUntil(() => vi.mocked(db.contractEvent.upsert).mock.calls.length > 0)
-    await new Promise((resolve) => setTimeout(resolve, 100)) // let any stray delivery attempt surface
+    await driveUntil(() => vi.mocked(db.contractEvent.upsert).mock.calls.length > 0)
+    await vi.advanceTimersByTimeAsync(100) // let any stray delivery attempt surface
 
     expect(db.contractEvent.upsert).toHaveBeenCalledWith(
       expect.objectContaining({ create: expect.objectContaining({ eventName: 'unrecognized_event' }) }),

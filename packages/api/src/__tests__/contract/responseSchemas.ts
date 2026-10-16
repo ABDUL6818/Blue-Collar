@@ -8,8 +8,8 @@
  * from `@bluecollar/types` (notably `Worker`, which intentionally strips PII
  * `phone`/`email` and emits an `images` object rather than `portfolioImages`),
  * the schema mirrors the *actual* serializer output — that is what clients
- * receive, so it is the real contract. The divergence is tracked as a TODO to
- * reconcile `@bluecollar/types` with the API.
+ * receive, so it is the real contract. The divergence is a known gap that
+ * remains to be reconciled between `@bluecollar/types` and the API.
  *
  * The contract tests validate the real serializers (the exact objects the
  * controllers return) against these schemas, giving runtime detection of

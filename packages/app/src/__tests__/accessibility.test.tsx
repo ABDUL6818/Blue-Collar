@@ -246,7 +246,7 @@ describe('Accessibility (WCAG 2.1 AA)', () => {
   })
 
   it('EscrowStatus has no violations in every status', async () => {
-    const { default: EscrowStatus } = await import('@/components/Escrow/EscrowStatus')
+    const { default: EscrowStatus } = await import('@/features/payments/components/EscrowStatus')
     const statuses = ['pending', 'funded', 'released', 'disputed', 'cancelled'] as const
     for (const status of statuses) {
       const { container, unmount } = render(
@@ -279,7 +279,7 @@ const ESCROW = {
 
 describe('EscrowStatus accessibility', () => {
   it('exposes the card as a named region and the amount as its heading', async () => {
-    const { default: EscrowStatus } = await import('@/components/Escrow/EscrowStatus')
+    const { default: EscrowStatus } = await import('@/features/payments/components/EscrowStatus')
     render(<EscrowStatus escrow={ESCROW} onRelease={vi.fn()} onDispute={vi.fn()} />)
 
     // article + aria-labelledby -> an "article" landmark named by the amount.
@@ -288,7 +288,7 @@ describe('EscrowStatus accessibility', () => {
   })
 
   it('announces the status through a live region', async () => {
-    const { default: EscrowStatus } = await import('@/components/Escrow/EscrowStatus')
+    const { default: EscrowStatus } = await import('@/features/payments/components/EscrowStatus')
     const { rerender } = render(
       <EscrowStatus escrow={ESCROW} onRelease={vi.fn()} onDispute={vi.fn()} />,
     )
@@ -306,7 +306,7 @@ describe('EscrowStatus accessibility', () => {
   })
 
   it('marks timeline progress with aria-current and per-step state text', async () => {
-    const { default: EscrowStatus } = await import('@/components/Escrow/EscrowStatus')
+    const { default: EscrowStatus } = await import('@/features/payments/components/EscrowStatus')
     render(<EscrowStatus escrow={ESCROW} onRelease={vi.fn()} onDispute={vi.fn()} />)
 
     const timeline = screen.getByRole('list', { name: 'Escrow progress' })
@@ -321,7 +321,7 @@ describe('EscrowStatus accessibility', () => {
   })
 
   it('hides the timeline for terminal statuses', async () => {
-    const { default: EscrowStatus } = await import('@/components/Escrow/EscrowStatus')
+    const { default: EscrowStatus } = await import('@/features/payments/components/EscrowStatus')
     render(
       <EscrowStatus
         escrow={{ ...ESCROW, status: 'disputed' }}
@@ -333,7 +333,7 @@ describe('EscrowStatus accessibility', () => {
   })
 
   it('gives each action an unambiguous accessible name', async () => {
-    const { default: EscrowStatus } = await import('@/components/Escrow/EscrowStatus')
+    const { default: EscrowStatus } = await import('@/features/payments/components/EscrowStatus')
     render(<EscrowStatus escrow={ESCROW} onRelease={vi.fn()} onDispute={vi.fn()} />)
 
     // Generic "Release"/"Dispute" would be indistinguishable across a list of cards.
@@ -346,7 +346,7 @@ describe('EscrowStatus accessibility', () => {
   })
 
   it('warns that the explorer link opens in a new tab', async () => {
-    const { default: EscrowStatus } = await import('@/components/Escrow/EscrowStatus')
+    const { default: EscrowStatus } = await import('@/features/payments/components/EscrowStatus')
     render(<EscrowStatus escrow={ESCROW} onRelease={vi.fn()} onDispute={vi.fn()} />)
 
     const link = screen.getByRole('link', { name: /opens in a new tab/i })
@@ -355,7 +355,7 @@ describe('EscrowStatus accessibility', () => {
   })
 
   it('marks the actions busy and announces work while loading', async () => {
-    const { default: EscrowStatus } = await import('@/components/Escrow/EscrowStatus')
+    const { default: EscrowStatus } = await import('@/features/payments/components/EscrowStatus')
     render(<EscrowStatus escrow={ESCROW} onRelease={vi.fn()} onDispute={vi.fn()} isLoading />)
 
     const release = screen.getByRole('button', { name: /^Release/ })
@@ -368,7 +368,7 @@ describe('EscrowStatus accessibility', () => {
     const user = userEvent.setup()
     const onRelease = vi.fn()
     const onDispute = vi.fn()
-    const { default: EscrowStatus } = await import('@/components/Escrow/EscrowStatus')
+    const { default: EscrowStatus } = await import('@/features/payments/components/EscrowStatus')
     render(<EscrowStatus escrow={ESCROW} onRelease={onRelease} onDispute={onDispute} />)
 
     const release = screen.getByRole('button', { name: /^Release/ })
@@ -391,7 +391,7 @@ describe('EscrowStatus accessibility', () => {
 
   it('keeps focus in the card when the action row unmounts after release', async () => {
     const user = userEvent.setup()
-    const { default: EscrowStatus } = await import('@/components/Escrow/EscrowStatus')
+    const { default: EscrowStatus } = await import('@/features/payments/components/EscrowStatus')
 
     function Harness() {
       const [status, setStatus] = React.useState<'funded' | 'released'>('funded')
