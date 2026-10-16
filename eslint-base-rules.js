@@ -14,6 +14,17 @@
  * be converted to a proper shared flat-config preset.
  */
 
+/**
+ * Documented per-package exceptions to the shared baseline. Anything not
+ * listed here must match the baseline exactly.
+ *
+ *   packages/app     no-console allows warn/error (client-side code)
+ *   packages/mobile  no-console is 'warn' (React Native debugging)
+ *   packages/api     no-console off for seed, command, script, monitoring and test files
+ *   packages/sdk     no-console off and no-explicit-any 'warn' in src/__tests__
+ *   packages/types   no-console off and no-explicit-any 'warn' in test files
+ */
+
 'use strict'
 
 /**
