@@ -4,7 +4,7 @@ import { useId, useRef, useState } from "react";
 import { Star, Loader2 } from "lucide-react";
 import { useCreateReview } from "@/hooks/queries";
 import type { Review } from "@/types";
-import FormError from "@/components/FormError";
+import FormError from "@/components/Form/FormError";
 
 interface ReviewFormProps {
   workerId: string;

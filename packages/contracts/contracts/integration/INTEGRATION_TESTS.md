@@ -183,3 +183,21 @@ These integration tests should be:
 The integration tests in this directory serve as the **single source of truth** for BlueCollar contract interactions. They document expected behavior, validate cross-contract functionality, and ensure system reliability.
 
 Any changes to contract interfaces or business logic should be reflected in these tests first, following a test-driven development approach for critical protocol functionality.
+## Shared Deployment Helpers
+
+Contract deployment lives in `tests/common/mod.rs`; flow files should call these
+helpers rather than registering and initialising contracts themselves:
+
+| Helper | Deploys |
+|---|---|
+| `deploy_token` / `mint` | Stellar asset contract, optionally minting to a holder |
+| `deploy_registry` | Registry with `curator_mgr` granted to the admin |
+| `deploy_market` | Market with fee and fee recipient |
+| `deploy_escrow` | Escrow |
+| `deploy_escrow_with_arbitrator` | Escrow plus the `arbitrator` role |
+| `deploy_dispute` | Dispute contract with `arbitrator` approved |
+| `deploy_insurance_pool` | Insurance pool with `claims_mgr` granted |
+| `deploy_reputation` | Reputation with `rep_mgr` granted |
+| `zero_hash` | 32 zero bytes |
+
+Run the crate with `cargo test -p bluecollar-integration`.

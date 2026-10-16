@@ -8,23 +8,22 @@
  * must maintain 85 %+ coverage. The node environment is used because the SDK
  * uses the native `fetch` API, which is available in Node 18+.
  */
-import { defineConfig } from 'vitest/config'
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
     include: ['src/**/*.test.ts', 'src/**/__tests__/**/*.test.ts'],
+    // Blocks real network access so SDK tests run offline (issue #1599).
+    setupFiles: ['./src/__tests__/setup/offline.ts'],
+    // Blocks real network access so SDK tests run offline (issue #1599).
+    setupFiles: ['./src/__tests__/setup/offline.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       include: ['src/**/*.ts'],
-      exclude: [
-        'src/**/__tests__/**',
-        'src/**/*.test.ts',
-        'src/types.ts',
-        '**/*.d.ts',
-      ],
+      exclude: ['src/**/__tests__/**', 'src/**/*.test.ts', 'src/types.ts', '**/*.d.ts'],
       // ── Thresholds (issue #1055) ──────────────────────────────────────────
       thresholds: {
         lines: 85,
@@ -34,4 +33,4 @@ export default defineConfig({
       },
     },
   },
-})
+});

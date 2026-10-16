@@ -1,26 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import dynamic from "next/dynamic";
-import {
-  Plus,
-  Pencil,
-  Trash2,
-  ToggleLeft,
-  ToggleRight,
-  TrendingUp,
-  X,
-} from "lucide-react";
-import { cn, formatDate } from "@/lib/utils";
-import { Table, type ColumnDef, type RowAction } from "@/components/Table";
+import { Plus } from "lucide-react";
+import { Table } from "@/components/Table";
 import { DashboardTableSkeleton } from "@/components/Skeleton";
+import { useDashboardWorkers } from "@/hooks/useDashboardWorkers";
 import type { ViewTrend } from "@/types";
-
-// ── Dynamic import (code splitting) ─────────────────────────────────────────
-const CuratorCharts = dynamic(
-  () => import("@/components/charts/CuratorCharts"),
-  { ssr: false, loading: () => <div className="h-[250px] rounded-lg bg-gray-50 animate-pulse" /> }
-);
+import { MetricCard } from "./MetricCard";
+import { buildWorkerColumns } from "./workerTableColumns";
+import { WorkerTrendsPanel } from "./WorkerTrendsPanel";
 
 export interface DashboardWorker {
   id: string;
@@ -43,8 +31,8 @@ interface WorkersPanelProps {
 }
 
 /**
- * Workers tab panel — renders a Table of the curator's worker listings
- * plus an inline view-trends chart panel.
+ * Workers tab panel — summary tiles, a Table of the curator's worker listings,
+ * and an inline view-trends chart panel.
  */
 export function WorkersPanel({
   workers,
@@ -57,123 +45,7 @@ export function WorkersPanel({
   onViewTrends,
   onCloseTrends,
 }: WorkersPanelProps) {
-  const columns: ColumnDef<DashboardWorker>[] = [
-    {
-      key: "name",
-      header: "Name",
-      cell: (w) => <span className="font-medium text-gray-800">{w.name}</span>,
-    },
-    {
-      key: "category",
-      header: "Category",
-      cell: (w) => (
-        <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-600">
-          {w.category.name}
-        </span>
-      ),
-    },
-    {
-      key: "isActive",
-      header: "Status",
-      cell: (w) => (
-        <span
-          className={cn(
-            "rounded-full px-2.5 py-0.5 text-xs font-medium",
-            w.isActive ? "bg-green-50 text-green-600" : "bg-gray-100 text-gray-500"
-          )}
-        >
-          {w.isActive ? "Active" : "Inactive"}
-        </span>
-      ),
-    },
-    {
-      key: "createdAt",
-      header: "Created",
-      cell: (w) => (
-        <span className="text-gray-400">
-          {formatDate(w.createdAt)}
-        </span>
-      ),
-      hideOnMobile: true,
-    },
-  ];
-
-  const rowActions: RowAction<DashboardWorker>[] = [
-    {
-      label: "View Trends",
-      icon: <TrendingUp size={15} />,
-      onClick: (w) => onViewTrends(w.id, w.name),
-    },
-    {
-      label: "Edit",
-      icon: (
-        <Link
-          href="#"
-          onClick={(e) => e.stopPropagation()}
-          className="contents"
-        >
-          <Pencil size={15} />
-        </Link>
-      ),
-      // Navigate via link — the action button wraps the icon; we use onClick too
-      onClick: () => {},
-    },
-    {
-      label: "Toggle",
-      icon: null, // rendered dynamically below
-      onClick: (w) => onToggle(w),
-    },
-    {
-      label: "Delete",
-      icon: <Trash2 size={15} />,
-      onClick: (w) => onDeleteRequest(w),
-      variant: "danger",
-    },
-  ];
-
-  // rowActions doesn't give us per-row icon customisation for the toggle button,
-  // so we use a custom cell-based column for actions instead of rowActions prop.
-  const actionsColumn: ColumnDef<DashboardWorker> = {
-    key: "_actions",
-    header: "Actions",
-    className: "text-right",
-    cell: (w) => (
-      <div className="flex items-center justify-end gap-1">
-        <button
-          onClick={() => onViewTrends(w.id, w.name)}
-          className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-blue-600 transition-colors"
-          title="View Trends"
-        >
-          <TrendingUp size={15} />
-        </button>
-        <Link
-          href={`/dashboard/workers/${w.id}/edit`}
-          className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-blue-600 transition-colors"
-          title="Edit"
-        >
-          <Pencil size={15} />
-        </Link>
-        <button
-          onClick={() => onToggle(w)}
-          className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-blue-600 transition-colors"
-          title={w.isActive ? "Deactivate" : "Activate"}
-        >
-          {w.isActive ? (
-            <ToggleRight size={17} className="text-green-500" />
-          ) : (
-            <ToggleLeft size={17} />
-          )}
-        </button>
-        <button
-          onClick={() => onDeleteRequest(w)}
-          className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-red-500 transition-colors"
-          title="Delete"
-        >
-          <Trash2 size={15} />
-        </button>
-      </div>
-    ),
-  };
+  const stats = useDashboardWorkers(workers);
 
   if (loading) {
     return <DashboardTableSkeleton />;
@@ -181,8 +53,14 @@ export function WorkersPanel({
 
   return (
     <>
+      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <MetricCard label="Total workers" value={stats.total} />
+        <MetricCard label="Active" value={stats.active} />
+        <MetricCard label="Inactive" value={stats.inactive} />
+      </div>
+
       <Table
-        columns={[...columns, actionsColumn]}
+        columns={buildWorkerColumns({ onToggle, onDeleteRequest, onViewTrends })}
         data={workers}
         loading={false}
         emptyMessage="No workers yet. Create your first worker listing to get started."
@@ -203,26 +81,13 @@ export function WorkersPanel({
         </div>
       )}
 
-      {/* View Trends Panel */}
       {selectedWorkerTrends && (
-        <div className="mt-6 rounded-xl border bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Views — {selectedWorkerName} (Last 30 days)
-            </h3>
-            <button
-              onClick={onCloseTrends}
-              className="rounded-md p-1 text-gray-400 hover:text-gray-600"
-            >
-              <X size={16} />
-            </button>
-          </div>
-          <CuratorCharts.ViewTrendsChart
-            trends={selectedWorkerTrends}
-            trendsLoading={trendsLoading}
-            workerName={selectedWorkerName}
-          />
-        </div>
+        <WorkerTrendsPanel
+          trends={selectedWorkerTrends}
+          workerName={selectedWorkerName}
+          trendsLoading={trendsLoading}
+          onClose={onCloseTrends}
+        />
       )}
     </>
   );

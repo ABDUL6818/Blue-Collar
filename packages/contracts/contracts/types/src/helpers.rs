@@ -165,6 +165,25 @@ pub fn split_fee(amount: i128, fee_bps: u32) -> (i128, i128) {
     (fee, net)
 }
 
+/// Floor of `amount * bps / 10_000`: the single basis-point weighting
+/// implementation shared by fee calculation and per-recipient fee distribution,
+/// so rounding is identical across contracts (issue #1590).
+///
+/// The product is computed in `u128`, so it cannot overflow for any `u32`
+/// basis-point weight and any non-negative `i128` amount that fits the result.
+///
+/// # Errors
+/// - [`ContractError::ArithmeticOverflow`] if `amount` is negative or the
+///   result does not fit in `i128`.
+pub fn bps_share(amount: i128, bps: u32) -> Result<i128, ContractError> {
+    let amount = u128::try_from(amount).map_err(|_| ContractError::ArithmeticOverflow)?;
+    let numerator = amount
+        .checked_mul(u128::from(bps))
+        .ok_or(ContractError::ArithmeticOverflow)?;
+    let floored = numerator / 10_000;
+    i128::try_from(floored).map_err(|_| ContractError::ArithmeticOverflow)
+}
+
 // =============================================================================
 // Unit tests
 // =============================================================================
@@ -200,7 +219,7 @@ mod tests {
     #[test]
     fn require_role_authorized() {
         let env = Env::default();
-        let client = probe(&env);
+        env.mock_all_auths();
 
         let caller = Address::generate(&env);
         let other = Address::generate(&env);
@@ -215,7 +234,7 @@ mod tests {
     #[test]
     fn require_role_unauthorized_empty_members() {
         let env = Env::default();
-        let client = probe(&env);
+        env.mock_all_auths();
 
         let caller = Address::generate(&env);
         let members: Vec<Address> = Vec::new(&env);
@@ -229,7 +248,7 @@ mod tests {
     #[test]
     fn require_role_unauthorized_not_in_members() {
         let env = Env::default();
-        let client = probe(&env);
+        env.mock_all_auths();
 
         let caller = Address::generate(&env);
         let other = Address::generate(&env);
@@ -246,7 +265,7 @@ mod tests {
     #[test]
     fn require_role_single_member_matches() {
         let env = Env::default();
-        let client = probe(&env);
+        env.mock_all_auths();
 
         let caller = Address::generate(&env);
         let mut members: Vec<Address> = Vec::new(&env);
@@ -279,7 +298,7 @@ mod tests {
     #[test]
     fn require_admin_caller_is_admin() {
         let env = Env::default();
-        let client = probe(&env);
+        env.mock_all_auths();
         let admin = Address::generate(&env);
         assert!(in_contract(&env, || require_admin(&admin, &admin)).is_ok());
     }
@@ -287,7 +306,7 @@ mod tests {
     #[test]
     fn require_admin_caller_is_not_admin() {
         let env = Env::default();
-        let client = probe(&env);
+        env.mock_all_auths();
         let admin = Address::generate(&env);
         let other = Address::generate(&env);
 
@@ -304,7 +323,7 @@ mod tests {
     #[test]
     fn require_party_matches_party_a() {
         let env = Env::default();
-        let client = probe(&env);
+        env.mock_all_auths();
         let a = Address::generate(&env);
         let b = Address::generate(&env);
         assert!(in_contract(&env, || require_party(&a, &a, &b)).is_ok());
@@ -313,7 +332,7 @@ mod tests {
     #[test]
     fn require_party_matches_party_b() {
         let env = Env::default();
-        let client = probe(&env);
+        env.mock_all_auths();
         let a = Address::generate(&env);
         let b = Address::generate(&env);
         assert!(in_contract(&env, || require_party(&b, &a, &b)).is_ok());
@@ -322,7 +341,7 @@ mod tests {
     #[test]
     fn require_party_rejects_stranger() {
         let env = Env::default();
-        let client = probe(&env);
+        env.mock_all_auths();
         let a = Address::generate(&env);
         let b = Address::generate(&env);
         let stranger = Address::generate(&env);
@@ -339,7 +358,7 @@ mod tests {
     #[test]
     fn require_owner_or_role_owner_ok() {
         let env = Env::default();
-        let client = probe(&env);
+        env.mock_all_auths();
         let owner = Address::generate(&env);
         let admins: Vec<Address> = Vec::new(&env);
         assert!(in_contract(&env, || require_owner_or_role(&owner, &owner, &admins)).is_ok());
@@ -348,7 +367,7 @@ mod tests {
     #[test]
     fn require_owner_or_role_admin_ok() {
         let env = Env::default();
-        let client = probe(&env);
+        env.mock_all_auths();
         let owner = Address::generate(&env);
         let admin = Address::generate(&env);
         let mut admins: Vec<Address> = Vec::new(&env);
@@ -359,7 +378,7 @@ mod tests {
     #[test]
     fn require_owner_or_role_rejects_stranger() {
         let env = Env::default();
-        let client = probe(&env);
+        env.mock_all_auths();
         let owner = Address::generate(&env);
         let stranger = Address::generate(&env);
         let admins: Vec<Address> = Vec::new(&env);
@@ -408,6 +427,75 @@ mod tests {
             let amount: i128 = 999_999;
             let (fee, net) = split_fee(amount, bps);
             assert_eq!(fee + net, amount, "fee + net != amount at {} bps", bps);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // bps_share (issue #1590)
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn bps_share_known_values() {
+        assert_eq!(bps_share(10_000, 5_000), Ok(5_000));
+        assert_eq!(bps_share(100_000, 100), Ok(1_000));
+        assert_eq!(bps_share(1, 5_000), Ok(0));
+        assert_eq!(bps_share(0, 10_000), Ok(0));
+    }
+
+    #[test]
+    fn bps_share_rejects_negative_amount() {
+        assert_eq!(bps_share(-1, 100), Err(ContractError::ArithmeticOverflow));
+    }
+
+    #[test]
+    fn bps_share_rejects_result_overflow() {
+        assert_eq!(bps_share(i128::MAX, 10_000), Err(ContractError::ArithmeticOverflow));
+    }
+
+    #[test]
+    fn bps_share_is_floor_within_one_unit() {
+        // For every amount/weight pair, share = floor(amount * bps / 10_000):
+        // share * 10_000 <= amount * bps < (share + 1) * 10_000.
+        for &amount in &[0i128, 1, 7, 999, 10_001, 123_456_789, 1_000_000_000_000] {
+            for bps in (0u32..=10_000).step_by(37) {
+                let share = bps_share(amount, bps).unwrap();
+                let scaled = amount * i128::from(bps);
+                assert!(share * 10_000 <= scaled, "floor too high: {amount} @ {bps}");
+                assert!((share + 1) * 10_000 > scaled, "floor too low: {amount} @ {bps}");
+            }
+        }
+    }
+
+    #[test]
+    fn bps_share_never_exceeds_amount() {
+        for &amount in &[1i128, 3, 99, 10_001, 987_654_321] {
+            for bps in 0u32..=10_000 {
+                assert!(bps_share(amount, bps).unwrap() <= amount);
+            }
+        }
+    }
+
+    #[test]
+    fn bps_share_partition_dust_is_bounded_by_recipient_count() {
+        // Splitting 10_000 bps across k recipients leaves at most k - 1 units
+        // of truncation dust, so the floor shares never drop more than k below
+        // the amount they were drawn from.
+        let splits: [&[u32]; 4] = [
+            &[10_000],
+            &[5_000, 5_000],
+            &[3_333, 3_333, 3_334],
+            &[1_000, 2_000, 3_000, 4_000],
+        ];
+        for &amount in &[1i128, 10, 999, 1_000_003, 555_555_555] {
+            for weights in splits {
+                let total: i128 = weights
+                    .iter()
+                    .map(|&w| bps_share(amount, w).unwrap())
+                    .sum();
+                let dust = amount - total;
+                assert!(dust >= 0, "shares exceed amount");
+                assert!(dust < weights.len() as i128, "dust {dust} >= {}", weights.len());
+            }
         }
     }
 }

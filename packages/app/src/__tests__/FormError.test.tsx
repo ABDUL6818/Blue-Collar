@@ -16,7 +16,7 @@
  */
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
-import FormError from "@/components/FormError";
+import FormError, { FieldError } from "@/components/Form/FormError";
 
 vi.mock("lucide-react", () => ({
   AlertCircle: (props: any) => <svg {...props} data-icon="alert-circle" />,
@@ -91,10 +91,25 @@ describe("FormError", () => {
   // ── className merge ───────────────────────────────────────────────────────
 
   it("merges a custom className onto the wrapper", () => {
-    const { container } = render(
-      <FormError message="Error" className="mt-4" />
-    );
+    const { container } = render(<FormError message="Error" className="mt-4" />);
     const el = container.querySelector("[role='alert']");
     expect(el?.className).toContain("mt-4");
+  });
+});
+
+describe("FieldError", () => {
+  it("renders nothing when message is falsy", () => {
+    const { container } = render(<FieldError message={null} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("renders the field error text with an alert role", () => {
+    render(<FieldError message="Email is required" />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Email is required");
+  });
+
+  it("merges a custom className", () => {
+    render(<FieldError message="Bad" className="mt-2" />);
+    expect(screen.getByRole("alert").className).toContain("mt-2");
   });
 });

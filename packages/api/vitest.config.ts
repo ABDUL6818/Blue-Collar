@@ -12,6 +12,7 @@
  *  - src/database/** and src/commands/** are excluded — these are migration /
  *    seed scripts with no unit-testable logic; coverage is validated via e2e.
  */
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -19,9 +20,11 @@ import { fileURLToPath } from 'node:url'
 const srcDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'src')
 
 export default defineConfig({
+  // Mirror tsconfig `paths` ("@/*" -> "src/*") so `@/db.js` style imports resolve under vitest.
   resolve: {
-    // Mirrors the "@/*" path in tsconfig.json so test imports resolve like app code
-    alias: { '@': srcDir },
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
   },
   test: {
     globals: true,
@@ -55,4 +58,4 @@ export default defineConfig({
       },
     },
   },
-})
+});

@@ -91,22 +91,6 @@ pub fn total_percentage_bps(recipients: &Vec<FeeRecipient>) -> Result<u32, Contr
     Ok(total)
 }
 
-/// Floor share of `available` owed to a party weighted at `percentage_bps`.
-///
-/// # Errors
-/// - [`ContractError::ArithmeticOverflow`] if `available` is negative or the
-///   intermediate `available * bps` product does not fit in `u128`.
-fn share_of(available: i128, percentage_bps: u32) -> Result<i128, ContractError> {
-    let available = u128::try_from(available).map_err(|_| ContractError::ArithmeticOverflow)?;
-    let numerator = available
-        .checked_mul(u128::from(percentage_bps))
-        .ok_or(ContractError::ArithmeticOverflow)?;
-    let floored = numerator
-        .checked_div(u128::from(MAX_FEE_BPS))
-        .ok_or(ContractError::ArithmeticOverflow)?;
-    i128::try_from(floored).map_err(|_| ContractError::ArithmeticOverflow)
-}
-
 /// Plan the exact per-recipient payouts for `available`.
 ///
 /// ## Dust / remainder policy
@@ -139,7 +123,7 @@ pub fn plan_distribution(
     let mut shares: Vec<i128> = Vec::new(env);
     let mut planned: i128 = 0;
     for recipient in recipients.iter() {
-        let share = share_of(available, recipient.percentage_bps)?;
+        let share = helpers::bps_share(available, recipient.percentage_bps)?;
         planned = planned
             .checked_add(share)
             .ok_or(ContractError::ArithmeticOverflow)?;

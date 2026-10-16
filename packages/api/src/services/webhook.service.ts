@@ -6,10 +6,15 @@ import type { PrismaClient } from '@prisma/client'
 
 interface WebhookServiceDeps {
   db?: PrismaClient
+  /** Max allowed age (or clock skew) of a signed webhook timestamp, in seconds. */
+  toleranceSeconds?: number
 }
+
+export type WebhookVerificationResult = 'valid' | 'invalid_signature' | 'stale_timestamp'
 
 const MAX_ATTEMPTS = 3
 const RETRY_DELAYS = [5_000, 30_000, 120_000] // 5s, 30s, 2min
+const DEFAULT_TOLERANCE_SECONDS = 300 // 5 minutes
 
 /**
  * WebhookService encapsulates webhook signature verification, payload processing,
@@ -19,9 +24,11 @@ export class WebhookService {
   private db: PrismaClient
   private maxAttempts = MAX_ATTEMPTS
   private retryDelays = RETRY_DELAYS
+  private toleranceSeconds: number
 
   constructor(deps?: WebhookServiceDeps) {
     this.db = deps?.db ?? defaultDb
+    this.toleranceSeconds = deps?.toleranceSeconds ?? DEFAULT_TOLERANCE_SECONDS
   }
 
   /**
@@ -46,6 +53,28 @@ export class WebhookService {
   }
 
   /**
+   * Verify a full incoming webhook request: the signature must cover the timestamp
+   * and body, and the timestamp must fall within the configured tolerance window.
+   * Tampered payloads fail the signature check; replayed (stale) ones fail the window.
+   * Callers should map anything other than 'valid' to HTTP 401.
+   */
+  verifyRequest(
+    secret: string,
+    payload: string,
+    signature: string,
+    timestamp: string,
+    nowMs = Date.now(),
+  ): WebhookVerificationResult {
+    if (!/^\d+$/.test(timestamp)) return 'invalid_signature'
+    if (!this.verifySignature(secret, `${timestamp}.${payload}`, signature)) {
+      return 'invalid_signature'
+    }
+    const ageMs = Math.abs(nowMs - Number(timestamp) * 1000)
+    if (ageMs > this.toleranceSeconds * 1000) return 'stale_timestamp'
+    return 'valid'
+  }
+
+  /**
    * Deliver a webhook to a subscriber with exponential backoff retry logic.
    * Retries up to MAX_ATTEMPTS times with increasing delays between attempts.
    */
@@ -58,7 +87,8 @@ export class WebhookService {
     attempt = 0,
   ): Promise<void> {
     const body = JSON.stringify(payload)
-    const signature = this.sign(secret, body)
+    const timestamp = Math.floor(Date.now() / 1000).toString()
+    const signature = this.sign(secret, `${timestamp}.${body}`)
 
     try {
       const res = await fetch(url, {
@@ -66,6 +96,7 @@ export class WebhookService {
         headers: {
           'Content-Type': 'application/json',
           'X-BlueCollar-Event': event,
+          'X-BlueCollar-Timestamp': timestamp,
           'X-BlueCollar-Signature': signature,
           'X-BlueCollar-Delivery': logId,
         },
