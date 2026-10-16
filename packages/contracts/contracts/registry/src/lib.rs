@@ -1823,6 +1823,8 @@ impl RegistryContract {
 // =============================================================================
 
 #[cfg(test)]
+mod benchmarks;
+#[cfg(test)]
 mod test;
 #[cfg(test)]
 mod tests {

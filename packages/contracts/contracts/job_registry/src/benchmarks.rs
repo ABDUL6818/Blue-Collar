@@ -15,7 +15,7 @@ mod benchmarks {
     extern crate std;
 
     use crate::JobRegistryContract;
-    use bluecollar_types::test_utils::zero_hash;
+    use bluecollar_types::test_utils::{mocked_env, zero_hash};
     use soroban_sdk::{testutils::Address as _, Address, Env, Symbol};
 
     /// Shared harness for job-registry benchmarks.
@@ -29,8 +29,7 @@ mod benchmarks {
 
     impl BenchEnv {
         fn new() -> Self {
-            let env = Env::default();
-            env.mock_all_auths();
+            let env = mocked_env();
 
             let admin = Address::generate(&env);
             let poster = Address::generate(&env);

@@ -42,10 +42,9 @@ Output lines are prefixed with `[BENCH]` for easy grepping:
 Baselines recorded on the `main` branch. Soroban host version: **v26.1.3**
 (`soroban-env-host 26.1.3` / `soroban-sdk 26.1.0`).
 
-> Market and Job-Registry numbers below are **measured** (the `[BENCH]` output
-> pasted verbatim). The Registry table still holds the original estimated
-> placeholders — `contracts/registry/src/benchmarks.rs` is not yet declared
-> from `registry/src/lib.rs`, so it does not compile or run.
+> All tables below are **measured** from the `[BENCH]` output. Registry
+> benchmarks are declared in `registry/src/lib.rs` and share their environment
+> and token setup with the other contracts via `bluecollar_types::test_utils`.
 
 ### Market Contract
 
@@ -73,12 +72,12 @@ Baselines recorded on the `main` branch. Soroban host version: **v26.1.3**
 
 | Operation | CPU Instructions | Memory Bytes | Notes |
 |-----------|-----------------|--------------|-------|
-| `register (1 worker)` | ~2,000,000 | ~140,000 | New worker + list + count update |
-| `batch_register (10 workers)` | ~18,000,000 | ~1,100,000 | ~1.8M CPU per worker |
-| `toggle` | ~1,200,000 | ~100,000 | Read-modify-write of is_active |
-| `update_reputation` | ~1,500,000 | ~110,000 | Writes reputation + history entry |
-| `submit_review` | ~2,800,000 | ~170,000 | Updates inputs + computes weighted score |
-| `stake` | ~3,800,000 | ~220,000 | Token transfer + StakeInfo write |
+| `register (1 worker)` | 253,767 | 104,852 | New worker + list + count update |
+| `batch_register (10 workers)` | 1,243,534 | 549,413 | ~124K CPU per worker |
+| `toggle` | 177,710 | 69,545 | Read-modify-write of is_active |
+| `update_reputation` | 249,425 | 101,536 | Writes reputation + history entry |
+| `submit_review` | 274,400 | 114,075 | Updates inputs + computes weighted score |
+| `stake` | 454,601 | 167,036 | Token transfer + StakeInfo write |
 
 ---
 
