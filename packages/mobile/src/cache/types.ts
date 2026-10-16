@@ -81,31 +81,31 @@ export interface UserProfileCache {
   cachedAt: number;
 }
 
-export interface BookmarkActionPayload {
+interface BookmarkActionPayload {
   workerId: string;
   bookmarked: boolean;
 }
 
-export interface ContactRequestActionPayload {
+interface ContactRequestActionPayload {
   workerId: string;
   message: string;
   preferredDate?: string;
 }
 
-export interface ReviewActionPayload {
+interface ReviewActionPayload {
   workerId: string;
   rating: number;
   comment: string;
 }
 
-export interface TipActionPayload {
+interface TipActionPayload {
   workerId: string;
   amount: string;
   asset: string;
   memo?: string;
 }
 
-export interface EscrowCreateActionPayload {
+interface EscrowCreateActionPayload {
   workerId: string;
   amount: string;
   asset: string;
