@@ -4,13 +4,8 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import request from "supertest";
-import jwt from "jsonwebtoken";
+import { makeAuthToken } from "../test-harness.js";
 
-// ─── Env ─────────────────────────────────────────────────────────────────────
-process.env.JWT_SECRET = "test-integration-secret";
-process.env.DATABASE_URL = "postgresql://localhost:5432/test";
-process.env.REDIS_URL = "redis://localhost:6379";
-process.env.APP_URL = "http://localhost:3000";
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -40,52 +35,19 @@ vi.mock("../../db.js", () => ({
     },
     $transaction: vi.fn(async (ops: any[]) => Promise.all(ops)),
   },
+  disconnectDb: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock("../../config/redis.js", () => ({
-  redis: { connect: vi.fn().mockResolvedValue(undefined), ping: vi.fn().mockResolvedValue("PONG") },
-  cacheMetrics: { hits: 0, misses: 0 },
-}));
-vi.mock("../../config/env.js", () => ({
-  env: {
-    DATABASE_URL: "postgresql://localhost:5432/test",
-    JWT_SECRET: "test-integration-secret",
-    PORT: 3000,
-    GOOGLE_CLIENT_ID: "test",
-    GOOGLE_CLIENT_SECRET: "test",
-    MAIL_HOST: "smtp.test.local",
-    MAIL_PORT: 587,
-    MAIL_USER: "test",
-    MAIL_PASS: "test",
-    APP_URL: "http://localhost:3000",
-  },
-}));
-vi.mock("../../openapi/docs.js", () => { const fn = (_: any, __: any, next: any) => next(); fn.use = fn; fn.get = fn; fn.handle = fn; return { default: fn }; })
-vi.mock("../../config/passport.js", () => ({
-  default: {
-    initialize: () => (_: any, __: any, next: any) => next(),
-    authenticate: () => (_: any, __: any, next: any) => next(),
-  },
-}));
-vi.mock("../../middleware/requestLogger.js", () => ({
-  requestLogger: (_: any, __: any, next: any) => next(),
-}));
-vi.mock("../../events/index.js", () => ({ registerEventHandlers: vi.fn() }));
-vi.mock("../../config/rateLimiter.js", () => ({
-  moderateAuthRateLimiter: (_: any, __: any, next: any) => next(),
-  strictAuthRateLimiter: (_: any, __: any, next: any) => next(),
-}));
-vi.mock("../../middleware/versionRateLimit.js", () => ({
-  versionRateLimit: () => (_: any, __: any, next: any) => next(),
-  getRateLimitStatus: (_: any, res: any) => res.json({ status: "ok" }),
-}));
-vi.mock("../../middleware/userRateLimit.js", () => ({
-  contactRateLimit: (_: any, __: any, next: any) => next(),
-  generalRateLimit: (_: any, __: any, next: any) => next(),
-  userRateLimit: () => (_: any, __: any, next: any) => next(),
-}));
-vi.mock("../../mailer/transport.js", () => ({
-  transporter: { sendMail: vi.fn().mockResolvedValue({ messageId: "test-msg" }) },
-}));
+vi.mock("../../config/redis.js", async () => (await import("../test-harness.js")).infraMocks.redis());
+vi.mock("../../config/env.js", async () => (await import("../test-harness.js")).infraMocks.env());
+vi.mock("../../openapi/docs.js", async () => (await import("../test-harness.js")).infraMocks.openapiDocs());
+vi.mock("../../config/passport.js", async () => (await import("../test-harness.js")).infraMocks.passport());
+vi.mock("../../middleware/requestLogger.js", async () => (await import("../test-harness.js")).infraMocks.requestLogger());
+vi.mock("../../queue/index.js", async () => (await import("../test-harness.js")).infraMocks.queue());
+vi.mock("../../events/index.js", async () => (await import("../test-harness.js")).infraMocks.events());
+vi.mock("../../config/rateLimiter.js", async () => (await import("../test-harness.js")).infraMocks.rateLimiter());
+vi.mock("../../middleware/versionRateLimit.js", async () => (await import("../test-harness.js")).infraMocks.versionRateLimit());
+vi.mock("../../middleware/userRateLimit.js", async () => (await import("../test-harness.js")).infraMocks.userRateLimit());
+vi.mock("../../mailer/transport.js", async () => (await import("../test-harness.js")).infraMocks.mailerTransport());
 
 import app from "../../app.js";
 import { db } from "../../db.js";
@@ -97,14 +59,6 @@ const regularUsers = [
   { id: "u1", email: "alice@example.com", firstName: "Alice", lastName: "Smith", role: "user", verified: true, createdAt: new Date(), updatedAt: new Date() },
   { id: "u2", email: "bob@example.com", firstName: "Bob", lastName: "Jones", role: "curator", verified: true, createdAt: new Date(), updatedAt: new Date() },
 ];
-
-function makeToken(role: string, id = "user-1") {
-  return jwt.sign(
-    { id, email: `${role}@example.com`, role },
-    "test-integration-secret",
-    { expiresIn: "1h" }
-  );
-}
 
 // ─── RBAC matrix for admin endpoints ─────────────────────────────────────────
 
@@ -132,7 +86,7 @@ describe("Admin endpoints — USER role gets 403", () => {
   it.each(protectedAdminEndpoints)(
     "GET $path → 403 for USER",
     async ({ method, path }) => {
-      const token = makeToken("user");
+      const token = makeAuthToken("user");
       const res = await (request(app) as any)[method](path).set("Authorization", `Bearer ${token}`);
       expect(res.status).toBe(403);
     }
@@ -148,7 +102,7 @@ describe("Admin endpoints — CURATOR role gets 403", () => {
   it.each(protectedAdminEndpoints)(
     "GET $path → 403 for CURATOR",
     async ({ method, path }) => {
-      const token = makeToken("curator");
+      const token = makeAuthToken("curator");
       const res = await (request(app) as any)[method](path).set("Authorization", `Bearer ${token}`);
       expect(res.status).toBe(403);
     }
@@ -166,7 +120,7 @@ describe("GET /api/admin/users", () => {
   });
 
   it("returns 200 with paginated user list for ADMIN", async () => {
-    const token = makeToken("admin", "admin-1");
+    const token = makeAuthToken("admin", "admin-1");
     const res = await request(app)
       .get("/api/admin/users")
       .set("Authorization", `Bearer ${token}`);
@@ -186,7 +140,7 @@ describe("GET /api/admin/workers", () => {
   });
 
   it("returns 200 for ADMIN with worker list", async () => {
-    const token = makeToken("admin", "admin-1");
+    const token = makeAuthToken("admin", "admin-1");
     const res = await request(app)
       .get("/api/admin/workers")
       .set("Authorization", `Bearer ${token}`);
@@ -203,7 +157,7 @@ describe("PATCH /api/admin/users/:id/role — role promotion", () => {
   });
 
   it("returns 403 when USER tries to promote another user", async () => {
-    const token = makeToken("USER");
+    const token = makeAuthToken("USER");
     const res = await request(app)
       .patch("/api/admin/users/u1/role")
       .set("Authorization", `Bearer ${token}`)
@@ -235,7 +189,7 @@ describe("POST /api/admin/workers/batch — RBAC", () => {
   });
 
   it("returns 403 for USER role", async () => {
-    const token = makeToken("USER");
+    const token = makeAuthToken("USER");
     const res = await request(app)
       .post("/api/admin/workers/batch")
       .set("Authorization", `Bearer ${token}`)

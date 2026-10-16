@@ -88,9 +88,21 @@ export interface InterceptedCall {
   url: string
   method: string
   body?: string
+  /** Request headers as sent, lower-cased keys (for asserting signatures etc.). */
+  headers?: Record<string, string>
 }
 
 // ─── Error simulation options ─────────────────────────────────────────────────
+
+function normalizeHeaders(headers: RequestInit['headers']): Record<string, string> | undefined {
+  if (!headers) return undefined
+  const entries: [string, string][] = Array.isArray(headers)
+    ? headers
+    : headers instanceof Headers
+      ? [...headers.entries()]
+      : Object.entries(headers)
+  return Object.fromEntries(entries.map(([k, v]) => [k.toLowerCase(), String(v)]))
+}
 
 export interface MockStellarRpcServerOptions {
   /** If true, GET /accounts/:id returns 404. */
@@ -252,7 +264,7 @@ export class MockStellarRpcServer {
     const method = (init?.method ?? 'GET').toUpperCase()
     const body = typeof init?.body === 'string' ? init.body : undefined
 
-    this.calls.push({ url: urlStr, method, body })
+    this.calls.push({ url: urlStr, method, body, headers: normalizeHeaders(init?.headers) })
 
     // Custom handler takes priority (return null to fall through)
     if (this.opts.customHandler) {
