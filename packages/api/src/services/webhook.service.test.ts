@@ -70,6 +70,68 @@ describe('WebhookService', () => {
     })
   })
 
+  describe('verifyRequest', () => {
+    const secret = 'test-secret'
+    const payload = JSON.stringify({ event: 'user.created' })
+    const nowMs = 1_700_000_000_000
+    const timestamp = String(nowMs / 1000)
+
+    const signFor = (ts: string, body: string, key = secret) =>
+      'sha256=' + crypto.createHmac('sha256', key).update(`${ts}.${body}`).digest('hex')
+
+    it('accepts a correctly signed request inside the window', () => {
+      const sig = signFor(timestamp, payload)
+      expect(service.verifyRequest(secret, payload, sig, timestamp, nowMs)).toBe('valid')
+    })
+
+    it('rejects a tampered payload with invalid_signature', () => {
+      const sig = signFor(timestamp, payload)
+      const tampered = JSON.stringify({ event: 'user.deleted' })
+      expect(service.verifyRequest(secret, tampered, sig, timestamp, nowMs)).toBe('invalid_signature')
+    })
+
+    it('rejects a wrong secret with invalid_signature', () => {
+      const sig = signFor(timestamp, payload, 'other-secret')
+      expect(service.verifyRequest(secret, payload, sig, timestamp, nowMs)).toBe('invalid_signature')
+    })
+
+    it('rejects a signature whose timestamp was altered', () => {
+      const sig = signFor(timestamp, payload)
+      const forged = String(Number(timestamp) + 1)
+      expect(service.verifyRequest(secret, payload, sig, forged, nowMs)).toBe('invalid_signature')
+    })
+
+    it('rejects a replayed request older than the tolerance window', () => {
+      const sig = signFor(timestamp, payload)
+      const laterMs = nowMs + 301_000
+      expect(service.verifyRequest(secret, payload, sig, timestamp, laterMs)).toBe('stale_timestamp')
+    })
+
+    it('rejects a request timestamped too far in the future', () => {
+      const futureTs = String(nowMs / 1000 + 600)
+      const sig = signFor(futureTs, payload)
+      expect(service.verifyRequest(secret, payload, sig, futureTs, nowMs)).toBe('stale_timestamp')
+    })
+
+    it('accepts a request exactly at the window edge', () => {
+      const sig = signFor(timestamp, payload)
+      const edgeMs = nowMs + 300_000
+      expect(service.verifyRequest(secret, payload, sig, timestamp, edgeMs)).toBe('valid')
+    })
+
+    it('honours a configurable tolerance', () => {
+      const strict = createWebhookService({ db: mockDb as PrismaClient, toleranceSeconds: 10 })
+      const sig = signFor(timestamp, payload)
+      expect(strict.verifyRequest(secret, payload, sig, timestamp, nowMs + 11_000)).toBe('stale_timestamp')
+      expect(strict.verifyRequest(secret, payload, sig, timestamp, nowMs + 9_000)).toBe('valid')
+    })
+
+    it('rejects a non-numeric timestamp', () => {
+      const sig = signFor('abc', payload)
+      expect(service.verifyRequest(secret, payload, sig, 'abc', nowMs)).toBe('invalid_signature')
+    })
+  })
+
   describe('createSubscription', () => {
     it('creates a subscription with a generated secret', async () => {
       const userId = 'user-123'
