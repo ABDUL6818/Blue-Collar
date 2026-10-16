@@ -27,6 +27,7 @@
 // are configured in the workspace Cargo.toml; per-function overrides go here.
 
 mod logic;
+mod skill_certification;
 mod storage;
 
 use bluecollar_types::ContractError;
@@ -1791,38 +1792,7 @@ impl RegistryContract {
         {
             return Err(ContractError::WorkerNotFound);
         }
-        let now = env.ledger().timestamp();
-        let entry = CertifiedSkill {
-            skill: skill.clone(),
-            certified_by: caller.clone(),
-            certified_at: now,
-            expires_at,
-        };
-        let mut skills: Vec<CertifiedSkill> = env
-            .storage()
-            .persistent()
-            .get(&DataKey::CertifiedSkills(worker_id.clone()))
-            .unwrap_or(Vec::new(&env));
-        let mut found = false;
-        let mut updated: Vec<CertifiedSkill> = Vec::new(&env);
-        for s in skills.iter() {
-            if s.skill == skill {
-                updated.push_back(entry.clone());
-                found = true;
-            } else {
-                updated.push_back(s);
-            }
-        }
-        if !found {
-            updated.push_back(entry);
-        }
-        env.storage()
-            .persistent()
-            .set(&DataKey::CertifiedSkills(worker_id.clone()), &updated);
-        env.events().publish(
-            (symbol_short!("SkillCert"), worker_id, skill),
-            (caller, expires_at),
-        );
+        skill_certification::certify(&env, &caller, &worker_id, &skill, expires_at);
         Ok(())
     }
 
@@ -1836,29 +1806,7 @@ impl RegistryContract {
         let curator_mgr = logic::role_symbol(&env, ROLE_CURATOR_MGR_CACHED);
         logic::require_role(&env, &curator_mgr, &caller)?;
         logic::require_not_paused(&env)?;
-        let skills: Vec<CertifiedSkill> = env
-            .storage()
-            .persistent()
-            .get(&DataKey::CertifiedSkills(worker_id.clone()))
-            .unwrap_or(Vec::new(&env));
-        let mut updated: Vec<CertifiedSkill> = Vec::new(&env);
-        let mut removed = false;
-        for s in skills.iter() {
-            if s.skill == skill {
-                removed = true;
-            } else {
-                updated.push_back(s);
-            }
-        }
-        if !removed {
-            return Err(ContractError::SkillNotFound);
-        }
-        env.storage()
-            .persistent()
-            .set(&DataKey::CertifiedSkills(worker_id.clone()), &updated);
-        env.events()
-            .publish((symbol_short!("SkillRvkd"), worker_id, skill), caller);
-        Ok(())
+        skill_certification::revoke(&env, &caller, &worker_id, &skill)
     }
 
     /// Get all certified skills for a worker.
@@ -1866,11 +1814,7 @@ impl RegistryContract {
         env: Env,
         worker_id: Symbol,
     ) -> Result<Vec<CertifiedSkill>, ContractError> {
-        Ok(env
-            .storage()
-            .persistent()
-            .get(&DataKey::CertifiedSkills(worker_id))
-            .unwrap_or(Vec::new(&env)))
+        Ok(skill_certification::list(&env, &worker_id))
     }
 }
 
