@@ -79,7 +79,7 @@ export interface FriendbotResponse {
   hash: string
 }
 
-export interface TransactionHistoryResponse {
+interface TransactionHistoryResponse {
   records: Array<{ hash: string; created_at: string }>
 }
 
