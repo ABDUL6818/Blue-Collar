@@ -237,5 +237,13 @@
   },
   "accessibility": {
     "skipToMain": "Saltar al contenido principal"
+  },
+  "notifications": {
+    "button": "Notificaciones",
+    "buttonUnread": "Notificaciones, {count} sin leer",
+    "markAllRead": "Marcar todas como leídas",
+    "clearAll": "Borrar todas las notificaciones",
+    "clearAllShort": "Borrar todas",
+    "markRead": "Marcar como leída"
   }
 }

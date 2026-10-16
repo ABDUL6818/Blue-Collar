@@ -1,15 +1,9 @@
 import type { ReactNode } from "react";
 import { Suspense } from "react";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
-import { AuthProvider } from "@/context/AuthContext";
-import { WalletProvider } from "@/context/WalletContext";
 import { CompareProvider } from "@/context/CompareContext";
 import { NotificationProvider } from "@/context/NotificationContext";
 import { ModalProvider } from "@/context/ModalContext";
-import { ThemeProvider } from "next-themes";
-import { Toaster } from "sonner";
-import { NextIntlClientProvider } from 'next-intl'
+import { Providers } from "@/components/Providers";
 import { getMessages } from 'next-intl/server'
 import CompareDrawer from "@/components/CompareDrawer";
 import BottomNav from "@/components/BottomNav";
@@ -55,26 +49,16 @@ export default async function LocaleLayout({
         <a href="#main-content" className="skip-to-main">
           Skip to main content
         </a>
-        <NextIntlClientProvider messages={messages}>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem storageKey="bc_theme">
-            <QueryClientProvider client={queryClient}>
-              <AuthProvider>
-                <WalletProvider>
-                  <ModalProvider>
-                    <CompareProvider>
-                      <div id="main-content" tabIndex={-1}>
-                        {children}
-                      </div>
-                      <DeferredNonCritical />
-                    </CompareProvider>
-                  </ModalProvider>
-                </WalletProvider>
-              </AuthProvider>
-            </QueryClientProvider>
-            {/* Toaster rendered at fixed position — no layout impact */}
-            <Toaster position="bottom-right" richColors closeButton />
-          </ThemeProvider>
-        </NextIntlClientProvider>
+        <Providers locale={locale} messages={messages}>
+          <ModalProvider>
+            <CompareProvider>
+              <div id="main-content" tabIndex={-1}>
+                {children}
+              </div>
+              <DeferredNonCritical />
+            </CompareProvider>
+          </ModalProvider>
+        </Providers>
       </body>
     </html>
   );

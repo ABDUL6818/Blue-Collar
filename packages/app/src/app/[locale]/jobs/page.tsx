@@ -8,6 +8,7 @@ import { getJobs } from "@/lib/api/jobs";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 import JobCard from "@/components/JobCard";
+import SearchFilters from "@/components/SearchFilters";
 import ErrorState from "@/components/ErrorState";
 import type { Job, Category, Meta } from "@/types";
 
