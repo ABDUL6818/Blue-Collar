@@ -87,6 +87,7 @@ This project uses [commitlint](https://commitlint.js.org/) to enforce the conven
 - **Local hook**: A `commit-msg` hook is installed via `pnpm prepare` (runs automatically after `pnpm install`). It validates every commit message against the rules in `commitlint.config.js` before allowing the commit.
 - **Manual check**: Run `pnpm commitlint` to validate the last commit message, or `npx commitlint --edit <file>` to validate a specific message file.
 - **CI**: The `Commit Lint` workflow re-checks every commit in a pull request, so messages that bypass the local hook (`--no-verify`, commits made in the GitHub web UI, or a clone where `pnpm install` was never run) still fail the PR. It is a required check, not advisory.
+- **Staged-file lint and format**: The `pre-commit` hook runs `pnpm format:check`, `pnpm lint-staged`, and `pnpm type-check`. `lint-staged` (configured in `package.json`) runs ESLint with `--max-warnings=0` and Prettier on staged `*.ts` and `*.tsx` files, and `rustfmt --edition 2021` on staged `*.rs` files under `packages/contracts`. A commit with a lint error in a staged file is blocked. Run `pnpm lint-staged` manually to check the staged set without committing.
 - **PR title**: Pull requests are squash merged, so the PR title becomes the commit subject on `main`. It is linted by the same rules and must follow the convention too.
 
 If a commit is rejected with a commitlint error, fix the message and re-commit:

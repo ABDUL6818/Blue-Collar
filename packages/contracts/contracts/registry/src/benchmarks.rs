@@ -15,6 +15,7 @@ mod benchmarks {
     extern crate std;
 
     use crate::{RegistryContract, ROLE_CURATOR_MGR, ROLE_PAUSER, ROLE_REP_MGR, ROLE_UPGRADER};
+    use bluecollar_types::test_utils::{mocked_env, zero_hash};
     use soroban_sdk::{
         testutils::{Address as _, Ledger},
         token::StellarAssetClient,
@@ -32,8 +33,7 @@ mod benchmarks {
 
     impl BenchEnv {
         fn new() -> Self {
-            let env = Env::default();
-            env.mock_all_auths();
+            let env = mocked_env();
 
             let admin = Address::generate(&env);
             let curator = Address::generate(&env);
@@ -56,7 +56,7 @@ mod benchmarks {
         }
 
         fn zero_hash(&self) -> BytesN<32> {
-            BytesN::from_array(&self.env, &[0u8; 32])
+            zero_hash(&self.env)
         }
 
         fn register_one(&self, id_str: &str) {

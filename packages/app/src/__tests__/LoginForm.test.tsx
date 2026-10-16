@@ -32,7 +32,7 @@ vi.mock('lucide-react', () => ({
   Loader2: ({ className }: any) => <span className={className} />,
 }));
 
-vi.mock('@/components/FormField', () => ({
+vi.mock('@/components/Form/FormField', () => ({
   default: ({ id, label, error, children }: any) => (
     <div>
       <label htmlFor={id}>{label}</label>

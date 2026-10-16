@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
-import EscrowStatus, { Escrow } from "../EscrowStatus";
+import EscrowStatus, { Escrow } from "../components/EscrowStatus";
 
 describe("EscrowStatus - Issue #1380", () => {
   const mockEscrow: Escrow = {

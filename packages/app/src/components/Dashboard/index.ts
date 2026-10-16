@@ -19,4 +19,3 @@ export type { DashboardTabType } from "./DashboardTabs";
 
 export { WorkerAnalyticsFilters } from "./WorkerAnalyticsFilters";
 export { WorkerAnalyticsSummary } from "./WorkerAnalyticsSummary";
-export { WorkerAnalyticsCharts } from "./WorkerAnalyticsCharts";

@@ -14,9 +14,12 @@ export const listCategories = catchAsync(async (req: Request, res: Response) => 
   })
 
   const [categories, total] = await categoryService.listCategoriesWithPagination(skip, take)
-  return sendSuccess(res, {
-    ...CategoryCollection(categories),
+  // Same envelope as reviews.ts: the collection goes under `data`, pagination under `meta`.
+  return res.json({
+    data: CategoryCollection(categories),
     meta: buildMeta(total),
+    status: 'success',
+    code: 200,
   })
 })
 

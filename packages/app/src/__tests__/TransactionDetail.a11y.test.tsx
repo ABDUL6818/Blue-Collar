@@ -17,7 +17,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeAll } from "vitest";
 import axe from "axe-core";
-import TransactionConfirmDialog from "@/components/Payment/TransactionConfirmDialog";
+import TransactionConfirmDialog from "@/features/payments/components/TransactionConfirmDialog";
 import type { TransactionSummary } from "@/lib/transactions";
 
 vi.mock("@/lib/utils", () => ({

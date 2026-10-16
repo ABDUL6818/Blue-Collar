@@ -14,7 +14,7 @@ export interface CreateWorkerBody {
 
 export interface UpdateWorkerBody extends Partial<CreateWorkerBody> {}
 
-export interface WorkerQuery {
+interface WorkerQuery {
   category?: string       // single category id
   categories?: string     // comma-separated category ids
   search?: string

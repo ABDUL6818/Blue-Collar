@@ -14,10 +14,7 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createSdk, HorizonClient, RegistryClient, SdkError } from '../index.js';
-
-function jsonResponse(body: unknown, status = 200, statusText = 'OK'): Response {
-  return new Response(JSON.stringify(body), { status, statusText });
-}
+import { jsonResponse } from './helpers/fake-transport.js';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -268,7 +265,7 @@ describe('RegistryClient.simulateInvoke', () => {
     const spy = vi.spyOn(global, 'fetch');
     spy.mockResolvedValue(jsonResponse({ result: 1 }));
     await client.simulateInvoke('totalWorkers');
-    expect(spy.mock.calls[0][0]).toBe('https://soroban-rpc.stellar.org');
+    expect(spy.mock.calls[0][0]).toBe('https://soroban-mainnet.stellar.org');
   });
 
   it('throws an SdkError on an HTTP failure', async () => {

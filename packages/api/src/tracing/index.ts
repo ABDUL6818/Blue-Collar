@@ -8,6 +8,9 @@ import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions'
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { trace, context, propagation, SpanStatusCode, type Attributes } from '@opentelemetry/api';
 import { W3CTraceContextPropagator } from '@opentelemetry/core';
+import { createServiceLogger } from '@/utils/logger.js';
+
+const logger = createServiceLogger('Tracing');
 
 // Set propagator
 propagation.setGlobalPropagator(new W3CTraceContextPropagator());
@@ -69,24 +72,24 @@ const sdk = new NodeSDK({
 
 export const initializeTracing = () => {
   if (process.env.OTEL_DISABLED === 'true') {
-    console.log('OpenTelemetry tracing is disabled');
+    logger.info('OpenTelemetry tracing is disabled');
     return;
   }
 
   try {
     sdk.start();
-    console.log('OpenTelemetry tracing initialized');
+    logger.info('OpenTelemetry tracing initialized');
   } catch (error) {
-    console.error('Failed to initialize OpenTelemetry:', error);
+    logger.error('Failed to initialize OpenTelemetry', error);
   }
 };
 
 export const shutdownTracing = async () => {
   try {
     await sdk.shutdown();
-    console.log('OpenTelemetry tracing shut down successfully');
+    logger.info('OpenTelemetry tracing shut down successfully');
   } catch (error) {
-    console.error('Error shutting down OpenTelemetry:', error);
+    logger.error('Error shutting down OpenTelemetry', error);
   }
 };
 

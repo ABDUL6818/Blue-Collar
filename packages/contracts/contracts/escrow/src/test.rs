@@ -692,6 +692,159 @@ fn test_resolve_cancelled_escrow_panics() {
 }
 
 // ---------------------------------------------------------------------------
+// Negative tests for terminal states reached through dispute resolution (#1594)
+// ---------------------------------------------------------------------------
+
+/// Move an escrow into `Disputed` and then resolve it, leaving a terminal state.
+fn dispute_and_resolve(
+    client: &EscrowContractClient,
+    admin: &Address,
+    depositor: &Address,
+    id: &Symbol,
+    release_to_beneficiary: bool,
+) {
+    client.dispute_escrow(depositor, id);
+    client.resolve_dispute(admin, id, &release_to_beneficiary);
+}
+
+#[test]
+fn test_resolve_already_resolved_escrow_panics() {
+    let (env, admin, depositor, beneficiary, token, contract_id) = setup_env();
+    let client = deploy_and_init(&env, &admin, &contract_id);
+    set_time(&env, 1_000);
+
+    let id = make_escrow(&env, &client, &depositor, &beneficiary, &token, "e1");
+    dispute_and_resolve(&client, &admin, &depositor, &id, true);
+
+    // Second resolution of a Released escrow must not re-run the transfer
+    assert_eq!(
+        client.try_resolve_dispute(&admin, &id, &false),
+        Err(Ok(ContractError::EscrowNotDisputed))
+    );
+}
+
+#[test]
+fn test_release_after_dispute_refund_panics() {
+    let (env, admin, depositor, beneficiary, token, contract_id) = setup_env();
+    let client = deploy_and_init(&env, &admin, &contract_id);
+    set_time(&env, 1_000);
+
+    let id = make_escrow(&env, &client, &depositor, &beneficiary, &token, "e1");
+    dispute_and_resolve(&client, &admin, &depositor, &id, false);
+
+    // Refunded to the depositor, so releasing to the beneficiary must fail
+    assert_eq!(
+        client.try_release_escrow(&depositor, &id),
+        Err(Ok(ContractError::EscrowNotActive))
+    );
+}
+
+#[test]
+fn test_cancel_after_dispute_release_panics() {
+    let (env, admin, depositor, beneficiary, token, contract_id) = setup_env();
+    let client = deploy_and_init(&env, &admin, &contract_id);
+    set_time(&env, 1_000);
+
+    let id = make_escrow(&env, &client, &depositor, &beneficiary, &token, "e1");
+    dispute_and_resolve(&client, &admin, &depositor, &id, true);
+
+    // Paid out to the beneficiary, so the admin may not refund it
+    assert_eq!(
+        client.try_cancel_escrow(&admin, &id),
+        Err(Ok(ContractError::EscrowNotActive))
+    );
+}
+
+#[test]
+fn test_dispute_after_dispute_resolved_panics() {
+    let (env, admin, depositor, beneficiary, token, contract_id) = setup_env();
+    let client = deploy_and_init(&env, &admin, &contract_id);
+    set_time(&env, 1_000);
+
+    let id = make_escrow(&env, &client, &depositor, &beneficiary, &token, "e1");
+    dispute_and_resolve(&client, &admin, &depositor, &id, false);
+
+    assert_eq!(
+        client.try_dispute_escrow(&beneficiary, &id),
+        Err(Ok(ContractError::EscrowNotActive))
+    );
+}
+
+#[test]
+fn test_invalid_transitions_move_no_funds_from_released() {
+    let (env, admin, depositor, beneficiary, token, contract_id) = setup_env();
+    let client = deploy_and_init(&env, &admin, &contract_id);
+    set_time(&env, 1_000);
+    let token_client = TokenClient::new(&env, &token);
+
+    let id = make_escrow(&env, &client, &depositor, &beneficiary, &token, "e1");
+    client.release_escrow(&depositor, &id);
+
+    let contract_before = token_client.balance(&contract_id);
+    let depositor_before = token_client.balance(&depositor);
+    let beneficiary_before = token_client.balance(&beneficiary);
+
+    assert_eq!(
+        client.try_release_escrow(&depositor, &id),
+        Err(Ok(ContractError::EscrowNotActive))
+    );
+    assert_eq!(
+        client.try_cancel_escrow(&admin, &id),
+        Err(Ok(ContractError::EscrowNotActive))
+    );
+    assert_eq!(
+        client.try_dispute_escrow(&depositor, &id),
+        Err(Ok(ContractError::EscrowNotActive))
+    );
+    assert_eq!(
+        client.try_resolve_dispute(&admin, &id, &true),
+        Err(Ok(ContractError::EscrowNotDisputed))
+    );
+
+    assert_eq!(token_client.balance(&contract_id), contract_before);
+    assert_eq!(token_client.balance(&depositor), depositor_before);
+    assert_eq!(token_client.balance(&beneficiary), beneficiary_before);
+    assert_eq!(client.get_escrow(&id).state, EscrowState::Released);
+}
+
+#[test]
+fn test_invalid_transitions_move_no_funds_from_cancelled() {
+    let (env, admin, depositor, beneficiary, token, contract_id) = setup_env();
+    let client = deploy_and_init(&env, &admin, &contract_id);
+    set_time(&env, 1_000);
+    let token_client = TokenClient::new(&env, &token);
+
+    let id = make_escrow(&env, &client, &depositor, &beneficiary, &token, "e1");
+    client.cancel_escrow(&admin, &id);
+
+    let contract_before = token_client.balance(&contract_id);
+    let depositor_before = token_client.balance(&depositor);
+    let beneficiary_before = token_client.balance(&beneficiary);
+
+    assert_eq!(
+        client.try_release_escrow(&depositor, &id),
+        Err(Ok(ContractError::EscrowNotActive))
+    );
+    assert_eq!(
+        client.try_cancel_escrow(&admin, &id),
+        Err(Ok(ContractError::EscrowNotActive))
+    );
+    assert_eq!(
+        client.try_dispute_escrow(&beneficiary, &id),
+        Err(Ok(ContractError::EscrowNotActive))
+    );
+    assert_eq!(
+        client.try_resolve_dispute(&admin, &id, &false),
+        Err(Ok(ContractError::EscrowNotDisputed))
+    );
+
+    assert_eq!(token_client.balance(&contract_id), contract_before);
+    assert_eq!(token_client.balance(&depositor), depositor_before);
+    assert_eq!(token_client.balance(&beneficiary), beneficiary_before);
+    assert_eq!(client.get_escrow(&id).state, EscrowState::Cancelled);
+}
+
+// ---------------------------------------------------------------------------
 // Upgrade and migration tests (#1253)
 // ---------------------------------------------------------------------------
 

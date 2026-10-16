@@ -169,3 +169,60 @@ pub enum ContractError {
     /// bookkeeping failures surface as a typed error instead of losing value.
     ArithmeticOverflow = 80,
 }
+
+#[cfg(test)]
+mod tests {
+    extern crate std;
+
+    use std::{fs, path::Path, string::{String, ToString}, vec::Vec};
+
+    /// Recursively collect every `.rs` file under `dir`.
+    fn rust_files(dir: &Path, out: &mut Vec<std::path::PathBuf>) {
+        for entry in fs::read_dir(dir).expect("readable directory") {
+            let path = entry.expect("readable entry").path();
+            if path.is_dir() {
+                rust_files(&path, out);
+            } else if path.extension().is_some_and(|ext| ext == "rs") {
+                out.push(path);
+            }
+        }
+    }
+
+    /// Guards issue #1588: `ContractError` in this crate is the only
+    /// `#[contracterror]` enum. Any other contract crate that declares its own
+    /// error enum fails this test, so error codes stay stable across contracts.
+    #[test]
+    fn no_contract_declares_its_own_contracterror_enum() {
+        let contracts_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("contracts directory");
+
+        let mut files = Vec::new();
+        for entry in fs::read_dir(contracts_dir).expect("contracts directory") {
+            let crate_dir = entry.expect("crate entry").path();
+            if !crate_dir.is_dir() || crate_dir.file_name().is_some_and(|n| n == "types") {
+                continue;
+            }
+            let src = crate_dir.join("src");
+            if src.is_dir() {
+                rust_files(&src, &mut files);
+            }
+        }
+
+        let offenders: Vec<String> = files
+            .iter()
+            .filter(|path| {
+                fs::read_to_string(path)
+                    .map(|src| src.lines().any(|line| line.trim_start().starts_with("#[contracterror]")))
+                    .unwrap_or(false)
+            })
+            .map(|path| path.display().to_string())
+            .collect();
+
+        assert!(
+            offenders.is_empty(),
+            "contract crates must use bluecollar_types::ContractError, found local #[contracterror] enums in: {:?}",
+            offenders
+        );
+    }
+}

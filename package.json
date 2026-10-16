@@ -60,6 +60,9 @@
     "packages/monitoring/src/**/*.ts": [
       "prettier --write"
     ],
+    "packages/contracts/**/*.rs": [
+      "rustfmt --edition 2021"
+    ],
     "**/*.{js,json,md}": [
       "prettier --write"
     ]

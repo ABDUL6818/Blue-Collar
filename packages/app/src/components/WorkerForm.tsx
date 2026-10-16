@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, CheckCircle2 } from "lucide-react";
-import FormField from "@/components/FormField";
+import FormField from "@/components/Form/FormField";
 import ImageUpload from "@/components/ImageUpload";
 import { cn } from "@/lib/utils";
 import { getCategories } from "@/lib/api";

@@ -98,8 +98,11 @@ export default function AvailabilityCalendar({
           <SelectionSummary
             rangeStart={rangeStart}
             rangeEnd={rangeEnd}
-            selectedSlot={rangeStart ? slotMap[rangeStart.getDay()] : null}
-            onClearSelection={() => { setRangeStart(null); setRangeEnd(null); }}
+            selectedSlot={rangeStart ? (slotMap[rangeStart.getDay()] ?? null) : null}
+            onClearSelection={() => {
+              setRangeStart(null);
+              setRangeEnd(null);
+            }}
             slotMap={slotMap}
           />
 
