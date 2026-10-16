@@ -1,6 +1,9 @@
 import type { Request, Response } from 'express'
 import { catchAsync } from '@/utils/catchAsync.js'
 import { AppError, ErrorCode } from '@/utils/AppError.js'
+import { createServiceLogger } from '@/utils/logger.js'
+
+const logger = createServiceLogger('AnalyticsEvents')
 
 interface AnalyticsEvent {
   event: string
@@ -23,7 +26,7 @@ export const recordEvents = catchAsync(async (req: Request, res: Response) => {
   // Events are not yet forwarded to an analytics backend (e.g., ClickHouse,
   // Mixpanel, Amplitude). Until one is wired up, they are only logged in dev.
   if (process.env.NODE_ENV === 'development') {
-    console.log('[Analytics Events]', JSON.stringify(events, null, 2))
+    logger.debug('Analytics events received', { events })
   }
 
   return res.json({ status: 'success', code: 200 })

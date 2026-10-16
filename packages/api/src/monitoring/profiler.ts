@@ -3,6 +3,9 @@ import fs from 'fs';
 import path from 'path';
 import v8 from 'v8';
 import type { Application, Request, Response } from 'express';
+import { createServiceLogger } from '@/utils/logger.js';
+
+const logger = createServiceLogger('Profiler');
 
 const PROFILE_DIR = process.env.PROFILE_DIR || './profiles';
 
@@ -20,13 +23,13 @@ export class PerformanceProfiler {
    */
   startCPUProfile(name: string = 'cpu-profile') {
     if (this.cpuProfileActive) {
-      console.warn('CPU profiling already active');
+      logger.warn('CPU profiling already active');
       return;
     }
 
     profiler.startProfiling(name, true);
     this.cpuProfileActive = true;
-    console.log(`CPU profiling started: ${name}`);
+    logger.info(`CPU profiling started: ${name}`);
   }
 
   /**
@@ -34,7 +37,7 @@ export class PerformanceProfiler {
    */
   stopCPUProfile(name: string = 'cpu-profile') {
     if (!this.cpuProfileActive) {
-      console.warn('No active CPU profile');
+      logger.warn('No active CPU profile');
       return;
     }
 
@@ -43,12 +46,12 @@ export class PerformanceProfiler {
 
     profile.export((error, result) => {
       if (error) {
-        console.error('Error exporting CPU profile:', error);
+        logger.error('Error exporting CPU profile', error);
         return;
       }
 
       fs.writeFileSync(filename, result);
-      console.log(`CPU profile saved: ${filename}`);
+      logger.info(`CPU profile saved: ${filename}`);
       profile.delete();
     });
 
@@ -61,7 +64,7 @@ export class PerformanceProfiler {
   takeHeapSnapshot(name: string = 'heap-snapshot') {
     const filename = path.join(PROFILE_DIR, `${name}-${Date.now()}.heapsnapshot`);
     const snapshot = v8.writeHeapSnapshot(filename);
-    console.log(`Heap snapshot saved: ${snapshot}`);
+    logger.info(`Heap snapshot saved: ${snapshot}`);
     return snapshot;
   }
 
@@ -71,7 +74,7 @@ export class PerformanceProfiler {
   startPeriodicHeapSnapshots(intervalMs: number = 3600000) {
     // Default: 1 hour
     if (this.heapSnapshotInterval) {
-      console.warn('Periodic heap snapshots already running');
+      logger.warn('Periodic heap snapshots already running');
       return;
     }
 
@@ -79,7 +82,7 @@ export class PerformanceProfiler {
       this.takeHeapSnapshot('periodic-heap');
     }, intervalMs);
 
-    console.log(`Periodic heap snapshots started (interval: ${intervalMs}ms)`);
+    logger.info(`Periodic heap snapshots started (interval: ${intervalMs}ms)`);
   }
 
   /**
@@ -89,7 +92,7 @@ export class PerformanceProfiler {
     if (this.heapSnapshotInterval) {
       clearInterval(this.heapSnapshotInterval);
       this.heapSnapshotInterval = null;
-      console.log('Periodic heap snapshots stopped');
+      logger.info('Periodic heap snapshots stopped');
     }
   }
 
@@ -128,7 +131,7 @@ export class PerformanceProfiler {
     try {
       const result = await fn();
       const duration = Date.now() - startTime;
-      console.log(`Function ${name} completed in ${duration}ms`);
+      logger.debug(`Function ${name} completed in ${duration}ms`);
       return result;
     } finally {
       this.stopCPUProfile(name);

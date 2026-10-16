@@ -704,3 +704,37 @@ describe('trackSearchAnalytics', () => {
     ).resolves.toBeUndefined()
   })
 })
+
+describe('worker.service facade', () => {
+  it('re-exports the public API of each worker sub-module', async () => {
+    const crud = await import('./worker-crud.service.js')
+    const query = await import('./worker-query.service.js')
+    const media = await import('./worker-media.service.js')
+
+    const expected = {
+      ...crud,
+      ...query,
+      ...media,
+    }
+
+    for (const [name, fn] of Object.entries(expected)) {
+      expect(workerService, `missing export ${name}`).toHaveProperty(name)
+      expect((workerService as Record<string, unknown>)[name]).toBe(fn)
+    }
+  })
+
+  it('exposes no functions beyond the sub-modules', async () => {
+    const crud = await import('./worker-crud.service.js')
+    const query = await import('./worker-query.service.js')
+    const media = await import('./worker-media.service.js')
+
+    const known = new Set([...Object.keys(crud), ...Object.keys(query), ...Object.keys(media)])
+    const facadeKeys = Object.keys(workerService).filter(
+      (key) => typeof (workerService as Record<string, unknown>)[key] === 'function',
+    )
+
+    for (const key of facadeKeys) {
+      expect(known.has(key), `unexpected facade export ${key}`).toBe(true)
+    }
+  })
+})
