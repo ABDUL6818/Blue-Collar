@@ -12,9 +12,15 @@
  *  - src/database/** and src/commands/** are excluded — these are migration /
  *    seed scripts with no unit-testable logic; coverage is validated via e2e.
  */
-import { defineConfig } from 'vitest/config'
+import { defineConfig } from 'vitest/config';
+import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
+  },
   test: {
     globals: true,
     environment: 'node',
@@ -47,4 +53,4 @@ export default defineConfig({
       },
     },
   },
-})
+});
