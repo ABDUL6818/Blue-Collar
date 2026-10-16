@@ -13,8 +13,16 @@
  *    seed scripts with no unit-testable logic; coverage is validated via e2e.
  */
 import { defineConfig } from 'vitest/config'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const srcDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'src')
 
 export default defineConfig({
+  resolve: {
+    // Mirrors the "@/*" path in tsconfig.json so test imports resolve like app code
+    alias: { '@': srcDir },
+  },
   test: {
     globals: true,
     environment: 'node',
