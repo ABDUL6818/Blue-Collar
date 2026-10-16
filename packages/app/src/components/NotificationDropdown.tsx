@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect } from "react";
 import { Bell, Check, CheckCheck, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useNotifications } from "@/context/NotificationContext";
 import type { NotificationType } from "@/types";
 import { cn, formatRelativeTime } from "@/lib/utils";
@@ -25,6 +26,7 @@ const TYPE_LABELS: Record<NotificationType, string> = {
 export default function NotificationDropdown() {
   const { notifications, unreadCount, markRead, markAllRead, clearAll } =
     useNotifications();
+  const t = useTranslations("notifications");
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -52,7 +54,11 @@ export default function NotificationDropdown() {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
+        aria-label={
+          unreadCount > 0
+            ? t("buttonUnread", { count: unreadCount })
+            : t("button")
+        }
         className="relative flex h-9 w-9 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors"
       >
         <Bell size={18} />
@@ -74,8 +80,8 @@ export default function NotificationDropdown() {
               {unreadCount > 0 && (
                 <button
                   onClick={markAllRead}
-                  title="Mark all as read"
-                  aria-label="Mark all as read"
+                  title={t("markAllRead")}
+                  aria-label={t("markAllRead")}
                   className="flex h-7 w-7 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                 >
                   <CheckCheck size={15} />
@@ -84,8 +90,8 @@ export default function NotificationDropdown() {
               {notifications.length > 0 && (
                 <button
                   onClick={clearAll}
-                  title="Clear all"
-                  aria-label="Clear all notifications"
+                  title={t("clearAllShort")}
+                  aria-label={t("clearAll")}
                   className="flex h-7 w-7 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                 >
                   <Trash2 size={14} />
@@ -140,7 +146,8 @@ export default function NotificationDropdown() {
                   {!n.read && (
                     <button
                       onClick={() => markRead(n.id)}
-                      title="Mark as read"
+                      title={t("markRead")}
+                      aria-label={t("markRead")}
                       className="mt-0.5 shrink-0 text-blue-400 hover:text-blue-600 transition-colors"
                     >
                       <Check size={14} />

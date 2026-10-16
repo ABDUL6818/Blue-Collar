@@ -69,7 +69,7 @@ describe('ListingForm validation', () => {
     await waitFor(() => expect(onSuccess).toHaveBeenCalledWith('worker-1'))
     expect(createMutateAsync).toHaveBeenCalledTimes(1)
 
-    const payload = createMutateAsync.mock.calls[0][0] as FormData
+    const payload = createMutateAsync.mock.calls[0]?.[0] as FormData
     expect(payload).toBeInstanceOf(FormData)
     expect(payload.get('name')).toBe('João Silva')
     expect(payload.get('categoryId')).toBe('cat-1')
