@@ -616,6 +616,34 @@ fn test_has_role_returns_false_for_ungranted_role() {
 }
 
 #[test]
+fn test_grant_and_revoke_admin_role_round_trip() {
+    let env = Env::default();
+    let (admin, _poster, client) = setup(&env);
+    let second_admin = Address::generate(&env);
+    let other = Address::generate(&env);
+    let admin_role = Symbol::new(&env, logic::ROLE_ADMIN);
+    let pauser_role = Symbol::new(&env, logic::ROLE_PAUSER);
+
+    // Granting ADMIN goes through the single-read admin guard path
+    client.grant_role(&admin, &admin_role, &second_admin);
+    assert!(client.has_role(&admin_role, &second_admin));
+    assert!(client.has_role(&admin_role, &admin));
+
+    // The newly granted admin can now manage other roles
+    client.grant_role(&second_admin, &pauser_role, &other);
+    assert!(client.has_role(&pauser_role, &other));
+
+    // Revoking ADMIN removes only that holder and leaves the original admin
+    client.revoke_role(&admin, &admin_role, &second_admin);
+    assert!(!client.has_role(&admin_role, &second_admin));
+    assert!(client.has_role(&admin_role, &admin));
+    assert_eq!(
+        client.try_grant_role(&second_admin, &pauser_role, &other),
+        Err(Ok(ContractError::MissingRole))
+    );
+}
+
+#[test]
 fn test_get_admin_returns_correct_admin() {
     let env = Env::default();
     let (admin, _poster, client) = setup(&env);

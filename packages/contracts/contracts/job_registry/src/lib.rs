@@ -22,7 +22,8 @@ mod benchmarks;
 
 use logic::{
     do_assign_worker, do_cancel_job, do_complete_job, do_dispute_job, do_initialize, do_post_job,
-    require_not_paused, require_role, role_to_id, ROLE_ADMIN, ROLE_PAUSER, ROLE_UPGRADER,
+    require_admin_for_role, require_not_paused, require_role, role_to_id, ROLE_ADMIN, ROLE_PAUSER,
+    ROLE_UPGRADER,
 };
 use storage::{
     is_paused, load_admin, load_job, load_job_list, load_poster_jobs, load_role_members,
@@ -56,10 +57,8 @@ impl JobRegistryContract {
         role: Symbol,
         account: Address,
     ) -> Result<(), ContractError> {
-        require_role(&env, &Symbol::new(&env, ROLE_ADMIN), &caller)?;
+        let (id, mut members) = require_admin_for_role(&env, &caller, &role)?;
         require_not_paused(&env)?;
-        let id = role_to_id(&env, &role);
-        let mut members = load_role_members(&env, id);
         if !members.iter().any(|m| m == account) {
             members.push_back(account.clone());
         }
@@ -76,10 +75,8 @@ impl JobRegistryContract {
         role: Symbol,
         account: Address,
     ) -> Result<(), ContractError> {
-        require_role(&env, &Symbol::new(&env, ROLE_ADMIN), &caller)?;
+        let (id, members) = require_admin_for_role(&env, &caller, &role)?;
         require_not_paused(&env)?;
-        let id = role_to_id(&env, &role);
-        let members = load_role_members(&env, id);
         let mut updated: Vec<Address> = Vec::new(&env);
         for m in members.iter() {
             if m != account {

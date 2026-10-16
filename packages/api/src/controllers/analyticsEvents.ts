@@ -23,8 +23,8 @@ export const recordEvents = catchAsync(async (req: Request, res: Response) => {
     throw new AppError('Invalid events payload', 400, true, ErrorCode.VALIDATION_ERROR)
   }
 
-  // TODO: Send to analytics backend (e.g., ClickHouse, Mixpanel, Amplitude)
-  // For now, just log to console in dev
+  // Events are not yet forwarded to an analytics backend (e.g., ClickHouse,
+  // Mixpanel, Amplitude). Until one is wired up, they are only logged in dev.
   if (process.env.NODE_ENV === 'development') {
     logger.debug('Analytics events received', { events })
   }

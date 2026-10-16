@@ -64,13 +64,13 @@ export interface NotificationJobData {
   data?: Record<string, string>
 }
 
-export interface IndexerJobData {
+interface IndexerJobData {
   ledger?: number
   contractId?: string
   forceResync?: boolean
 }
 
-export interface TtlJobData {
+interface TtlJobData {
   model: 'worker' | 'user' | 'session'
   recordId: string
   newTtl: number
