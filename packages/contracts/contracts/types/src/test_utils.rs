@@ -5,8 +5,28 @@
 
 use soroban_sdk::{
     testutils::Ledger as _,
+    token::StellarAssetClient,
     Address, BytesN, Env,
 };
+
+/// Create a test `Env` with all authorisations mocked.
+pub fn mocked_env() -> Env {
+    let env = Env::default();
+    env.mock_all_auths();
+    env
+}
+
+/// Register a Stellar asset contract administered by `admin` and mint each
+/// `(recipient, amount)` pair in `balances`. Returns the token address.
+pub fn deploy_token(env: &Env, admin: &Address, balances: &[(&Address, i128)]) -> Address {
+    let token_id = env.register_stellar_asset_contract_v2(admin.clone());
+    let token_addr = token_id.address();
+    let asset = StellarAssetClient::new(env, &token_addr);
+    for (to, amount) in balances {
+        asset.mint(to, amount);
+    }
+    token_addr
+}
 
 /// Advance the ledger timestamp to `ts`.
 pub fn set_time(env: &Env, ts: u64) {
