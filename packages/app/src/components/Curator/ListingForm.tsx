@@ -37,7 +37,10 @@ export function ListingForm({ workerId, defaultValues, onSuccess }: ListingFormP
     formState: { errors, isSubmitting },
   } = useForm<Fields>({
     resolver: zodResolver(schema),
-    defaultValues: defaultValues ?? {},
+    // Default categoryId to "" so the disabled placeholder option is selected;
+    // otherwise the browser falls back to the first real category and the
+    // required-category rule can never fire.
+    defaultValues: { categoryId: "", ...defaultValues },
   });
 
   const onSubmit = async (data: Fields) => {
