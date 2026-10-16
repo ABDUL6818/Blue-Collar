@@ -10,6 +10,11 @@ import type { EscrowServiceDeps } from '@/container/types.js'
 
 // ── Pause guard ───────────────────────────────────────────────────────────────
 
+/** Shape of the (currently non-existent) systemConfig delegate used by the pause guard. */
+interface SystemConfigDelegate {
+  findUnique(args: { where: { key: string } }): Promise<{ value: string } | null>
+}
+
 /**
  * Check whether the system is globally paused.
  * Throws 409 Conflict if paused, mirroring the on-chain `require_not_paused`.
@@ -18,8 +23,9 @@ async function requireNotPaused() {
   // SystemConfig has no corresponding Prisma model (no migration ever added it) — this
   // call is effectively dead code today and would throw at runtime against a real DB.
   // Pre-existing gap, tracked separately; not introducing a fake model to paper over it here.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const config = await (db as any).systemConfig.findUnique({ where: { key: 'isPaused' } })
+  const config = await (db as unknown as { systemConfig: SystemConfigDelegate }).systemConfig.findUnique({
+    where: { key: 'isPaused' },
+  })
   if (config && config.value === 'true') {
     throw new AppError('System is paused — escrow operations are temporarily disabled', 409, true, ErrorCode.CONFLICT)
   }
