@@ -5,6 +5,7 @@ import crypto from 'node:crypto'
 import { AppError } from '@/utils/AppError.js'
 import { sanitizeUser } from '@/models/user.model.js'
 import { createServiceLogger } from '@/utils/logger.js'
+import { addUtcMs, nowUtc } from '@/utils/date.js'
 import type { LoginBody } from '@/interfaces/index.js'
 import type { AuthServiceDeps } from '@/container/types.js'
 
@@ -18,7 +19,7 @@ const REFRESH_TOKEN_TTL_DAYS = 7
 export function generateRefreshToken() {
   const raw = crypto.randomBytes(40).toString('hex')
   const hash = crypto.createHash('sha256').update(raw).digest('hex')
-  const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000)
+  const expiresAt = addUtcMs(nowUtc(), REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000)
   return { raw, hash, expiresAt }
 }
 
@@ -77,11 +78,11 @@ export function createAuthSessionService(deps: Pick<AuthServiceDeps, 'userReposi
         id: string; revokedAt: Date | null; expiresAt: Date; userId: string
       } | null
 
-      if (!stored || stored.revokedAt || stored.expiresAt < new Date()) {
+      if (!stored || stored.revokedAt || stored.expiresAt < nowUtc()) {
         throw new AppError('Invalid or expired refresh token', 401)
       }
 
-      await db.refreshToken.update({ where: { id: stored.id }, data: { revokedAt: new Date() } })
+      await db.refreshToken.update({ where: { id: stored.id }, data: { revokedAt: nowUtc() } })
 
       const user = await userRepository.findById(stored.userId)
       if (!user) throw new AppError('User not found', 404)
@@ -102,7 +103,7 @@ export function createAuthSessionService(deps: Pick<AuthServiceDeps, 'userReposi
     async revokeAllRefreshTokens(userId: string) {
       await db.refreshToken.updateMany({
         where: { userId, revokedAt: null },
-        data: { revokedAt: new Date() },
+        data: { revokedAt: nowUtc() },
       })
     },
   }

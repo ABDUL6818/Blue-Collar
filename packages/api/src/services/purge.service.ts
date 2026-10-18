@@ -11,6 +11,7 @@ import path from 'node:path'
 import fs from 'node:fs/promises'
 import { db } from '@/db.js'
 import { logger } from '@/config/logger.js'
+import { nowUtc, addUtcMs } from '@/utils/date.js'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -23,7 +24,7 @@ const INTERVAL_MS     = 24 * 60 * 60 * 1000 // 24 hours
  * Hard-delete Worker and User records whose `deletedAt` is older than 90 days.
  */
 export async function purgeExpiredSoftDeletes(): Promise<void> {
-  const cutoff = new Date(Date.now() - NINETY_DAYS_MS)
+  const cutoff = addUtcMs(nowUtc(), -NINETY_DAYS_MS)
 
   const [workers, users] = await Promise.all([
     db.worker.deleteMany({ where: { deletedAt: { lte: cutoff } } }),
@@ -42,11 +43,12 @@ export async function purgeExpiredSoftDeletes(): Promise<void> {
  * Remove expired refresh tokens (treated as "expired sessions").
  */
 export async function deleteExpiredSessions(): Promise<void> {
+  const now = nowUtc()
   const result = await db.refreshToken.deleteMany({
     where: {
       OR: [
-        { expiresAt: { lte: new Date() } },
-        { revokedAt: { not: null, lte: new Date() } },
+        { expiresAt: { lte: now } },
+        { revokedAt: { not: null, lte: now } },
       ],
     },
   })
@@ -60,7 +62,7 @@ export async function deleteExpiredSessions(): Promise<void> {
  */
 export async function deleteExpiredIdempotencyKeys(): Promise<void> {
   const result = await db.idempotencyKey.deleteMany({
-    where: { expiresAt: { lte: new Date() } },
+    where: { expiresAt: { lte: nowUtc() } },
   })
   if (result.count > 0) {
     logger.info({ count: result.count }, 'Purged expired idempotency keys')
@@ -129,7 +131,7 @@ export async function deleteOrphanedUploads(olderThanDays = 30): Promise<void> {
  * Delete Notification records older than `olderThanDays` days.
  */
 export async function deleteOldNotifications(olderThanDays = 30): Promise<void> {
-  const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000)
+  const cutoff = addUtcMs(nowUtc(), -olderThanDays * 24 * 60 * 60 * 1000)
   const result = await db.notification.deleteMany({
     where: { createdAt: { lte: cutoff } },
   })

@@ -3,6 +3,7 @@ import { jobRepository as defaultJobRepository } from '@/repositories/job.reposi
 import { AppError } from '@/utils/AppError.js'
 import { dispatchNotification } from '@/services/notification.service.js'
 import { buildPaginationMeta } from '@/utils/pagination.js'
+import { nowUtc, parseUtcDate, addUtcMs } from '@/utils/date.js'
 import type { JobServiceDeps } from '@/container/types.js'
 
 // ── Factory ───────────────────────────────────────────────────────────────────
@@ -116,7 +117,7 @@ export function createJobService(deps: JobServiceDeps) {
         locationId: data.locationId,
         postedById,
         escrowAmount: data.escrowAmount,
-        expiresAt: data.expiresAt ? new Date(data.expiresAt) : undefined,
+        expiresAt: data.expiresAt ? parseUtcDate(data.expiresAt) : undefined,
       })
     },
 
@@ -140,7 +141,7 @@ export function createJobService(deps: JobServiceDeps) {
       if (!job) throw new AppError('Job not found', 404)
       if (job.postedById !== userId) throw new AppError('Forbidden', 403)
 
-      return repo.update(id, { ...data, expiresAt: data.expiresAt ? new Date(data.expiresAt) : undefined })
+      return repo.update(id, { ...data, expiresAt: data.expiresAt ? parseUtcDate(data.expiresAt) : undefined })
     },
 
     async deleteJob(id: string, userId: string) {
@@ -160,10 +161,9 @@ export function createJobService(deps: JobServiceDeps) {
         throw new AppError('Only open or expired jobs can be renewed', 400)
       }
 
-      const expiresAt = new Date()
-      expiresAt.setDate(expiresAt.getDate() + daysFromNow)
+      const expiresAt = addUtcMs(nowUtc(), daysFromNow * 24 * 60 * 60 * 1000)
 
-      return repo.update(id, { status: 'open', expiresAt, renewedAt: new Date() })
+      return repo.update(id, { status: 'open', expiresAt, renewedAt: nowUtc() })
     },
 
     // ── My posted jobs ────────────────────────────────────────────────────────
@@ -269,7 +269,7 @@ export function createJobService(deps: JobServiceDeps) {
 
       await repo.updateManyMessages(
         { jobId, recipientId: userId, readAt: null },
-        { readAt: new Date() },
+        { readAt: nowUtc() },
       )
 
       return repo.findMessages({

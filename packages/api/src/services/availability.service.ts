@@ -1,5 +1,6 @@
 import { availabilityRepository as defaultAvailabilityRepository } from '@/repositories/availability.repository.js'
 import { AppError } from '@/utils/AppError.js'
+import { nowUtc, parseUtcDate, addUtcMs, formatUtcIso } from '@/utils/date.js'
 import type { AvailabilityServiceDeps } from '@/container/types.js'
 
 // ── Types ─────────────────────────────────────────────────────────────────────

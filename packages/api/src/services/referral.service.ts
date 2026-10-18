@@ -1,6 +1,7 @@
 import crypto from 'node:crypto'
 import { referralRepository as defaultReferralRepository } from '@/repositories/referral.repository.js'
 import { AppError } from '@/utils/AppError.js'
+import { nowUtc } from '@/utils/date.js'
 import type { ReferralServiceDeps } from '@/container/types.js'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -45,7 +46,7 @@ export function createReferralService(deps: ReferralServiceDeps) {
         refereeId,
         code,
         status: 'converted',
-        convertedAt: new Date(),
+        convertedAt: nowUtc(),
       })
     },
 

@@ -6,6 +6,7 @@ import type { CreateWorkerBody, UpdateWorkerBody } from '@/interfaces/index.js'
 import { publishEvent } from './webhook.service.js'
 import { appEvents } from '@/events/app-events.js'
 import { createServiceLogger } from '@/utils/logger.js'
+import { nowUtc } from '@/utils/date.js'
 
 const logger = createServiceLogger('WorkerService')
 const workerInclude = { category: true, curator: true } as const
@@ -43,7 +44,7 @@ export async function updateWorker(id: string, data: UpdateWorkerBody, updatedBy
 
 export async function deleteWorker(id: string) {
   logger.debug('Deleting worker', { workerId: id })
-  await db.worker.update({ where: { id }, data: { deletedAt: new Date() } })
+  await db.worker.update({ where: { id }, data: { deletedAt: nowUtc() } })
   publishEvent('worker.deleted', { workerId: id }).catch(() => {})
   appEvents.emit('worker.deleted', { workerId: id })
   logger.info('Worker deleted successfully', { workerId: id })

@@ -1,6 +1,7 @@
 import { insuranceRepository as defaultInsuranceRepository } from '@/repositories/insurance.repository.js'
 import { AppError } from '@/utils/AppError.js'
 import { sendInsuranceRenewalReminder } from '@/mailer/index.js'
+import { nowUtc, addUtcMs } from '@/utils/date.js'
 import type { InsuranceServiceDeps } from '@/container/types.js'
 
 // ── Factory ───────────────────────────────────────────────────────────────────
@@ -37,7 +38,7 @@ export function createInsuranceService(deps: InsuranceServiceDeps) {
      * Called by a scheduled job / cron.
      */
     async sendRenewalReminders(daysAhead = 30) {
-      const threshold = new Date(Date.now() + daysAhead * 24 * 60 * 60 * 1000)
+      const threshold = addUtcMs(nowUtc(), daysAhead * 24 * 60 * 60 * 1000)
 
       const expiring = await repo.findExpiring(threshold)
 

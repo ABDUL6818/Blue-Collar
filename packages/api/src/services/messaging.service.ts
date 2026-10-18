@@ -1,5 +1,6 @@
 import { messagingRepository as defaultMessagingRepository } from '@/repositories/messaging.repository.js'
 import { AppError, ErrorCode } from '@/utils/AppError.js'
+import { nowUtc, parseUtcDate } from '@/utils/date.js'
 import type { MessagingServiceDeps } from '@/container/types.js'
 
 // ── Factory ───────────────────────────────────────────────────────────────────
@@ -57,7 +58,8 @@ export function createMessagingService(deps: MessagingServiceDeps) {
       return conversations.reduce((count: number, conv) => {
         const lastReadAt = conv.participants[0]?.lastReadAt
         if (!lastReadAt) return count + conv.messages.length
-        return count + conv.messages.filter((m) => m.createdAt > lastReadAt).length
+        const lastReadAtDate = parseUtcDate(lastReadAt)
+        return count + conv.messages.filter((m) => parseUtcDate(m.createdAt) > lastReadAtDate).length
       }, 0)
     },
   }

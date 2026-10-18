@@ -11,6 +11,7 @@
 
 import { redis } from '@/config/redis.js'
 import { logger } from '@/config/logger.js'
+import { nowUtc, parseUtcDate, addUtcMs, formatUtcIso } from '@/utils/date.js'
 import { Counter, Histogram, register } from 'prom-client'
 
 // ── Prometheus metrics ────────────────────────────────────────────────────────
