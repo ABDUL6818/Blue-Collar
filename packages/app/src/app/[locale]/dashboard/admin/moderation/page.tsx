@@ -1,5 +1,6 @@
 "use client";
 
+import LoadingState from "@/components/LoadingState";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Search, Star, Loader2 } from "lucide-react";
@@ -56,9 +57,7 @@ export default function AdminModerationPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-        </div>
+        <LoadingState variant="list" />
       ) : reviews.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-3 py-20 text-gray-400">
           <Search size={40} className="opacity-30" />
