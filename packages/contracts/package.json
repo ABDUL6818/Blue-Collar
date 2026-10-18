@@ -6,6 +6,9 @@
   "scripts": {
     "build": "make build",
     "test": "make test",
+    "lint": "cargo fmt --all -- --check && cargo clippy --workspace --all-targets -- -D warnings",
+    "fmt": "cargo fmt --all",
+    "fmt:check": "cargo fmt --all -- --check",
     "audit": "make audit",
     "security:scan": "make security-scan",
     "coverage": "make coverage",

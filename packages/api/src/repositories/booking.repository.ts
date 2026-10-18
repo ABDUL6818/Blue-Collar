@@ -1,13 +1,12 @@
 import type { Availability, Booking, Prisma } from '@prisma/client'
+import { BookingStatus } from '@bluecollar/types'
+import type { BookingSlot, PaginatedBookings } from '@bluecollar/types'
 import type { IRepository } from './base.repository.js'
 import { db } from '@/db.js'
 
 // ── Interface ─────────────────────────────────────────────────────────────────
 
-export interface BookingSlot {
-  startTime: Date
-  endTime: Date
-}
+export type { BookingSlot }
 
 export interface IBookingRepository extends IRepository<Booking, Prisma.BookingCreateInput, Prisma.BookingUpdateInput> {
   findWorkerById(id: string): Promise<{ id: string; userId: string } | null>
@@ -17,8 +16,8 @@ export interface IBookingRepository extends IRepository<Booking, Prisma.BookingC
   findBookingWithWorker(id: string): Promise<(Booking & { worker: { userId: string }; requester: { id: string; firstName: string } }) | null>
   findBookingWithCancelInfo(id: string): Promise<(Booking & { worker: { userId: string } }) | null>
   updateBooking(id: string, data: Prisma.BookingUpdateInput): Promise<Booking>
-  findWorkerBookings(workerId: string, opts: { page: number; limit: number; status?: string }): Promise<{ bookings: Booking[]; total: number; page: number; limit: number; totalPages: number }>
-  findRequesterBookings(requesterId: string, opts: { page: number; limit: number; status?: string }): Promise<{ bookings: Booking[]; total: number; page: number; limit: number; totalPages: number }>
+  findWorkerBookings(workerId: string, opts: { page: number; limit: number; status?: BookingStatus }): Promise<PaginatedBookings>
+  findRequesterBookings(requesterId: string, opts: { page: number; limit: number; status?: BookingStatus }): Promise<PaginatedBookings>
 }
 
 // ── Prisma implementation ─────────────────────────────────────────────────────
@@ -56,7 +55,7 @@ export class BookingRepository implements IBookingRepository {
     return db.booking.findMany({
       where: {
         workerId,
-        status: { in: ['pending', 'confirmed'] },
+        status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
         OR: [{ startTime: { lt: endTime }, endTime: { gt: startTime } }],
       },
       select: { startTime: true, endTime: true },
@@ -100,8 +99,8 @@ export class BookingRepository implements IBookingRepository {
 
   async findWorkerBookings(
     workerId: string,
-    opts: { page: number; limit: number; status?: string },
-  ) {
+    opts: { page: number; limit: number; status?: BookingStatus },
+  ): Promise<PaginatedBookings> {
     const { page, limit, status } = opts
     const skip = (page - 1) * limit
     const where: Prisma.BookingWhereInput = { workerId, ...(status ? { status } : {}) }
@@ -122,8 +121,8 @@ export class BookingRepository implements IBookingRepository {
 
   async findRequesterBookings(
     requesterId: string,
-    opts: { page: number; limit: number; status?: string },
-  ) {
+    opts: { page: number; limit: number; status?: BookingStatus },
+  ): Promise<PaginatedBookings> {
     const { page, limit, status } = opts
     const skip = (page - 1) * limit
     const where: Prisma.BookingWhereInput = { requesterId, ...(status ? { status } : {}) }

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { BookingStatus } from '@bluecollar/types'
 
 export const createBookingRules = z.object({
   workerId: z.string().min(1, 'workerId is required'),
@@ -8,5 +9,5 @@ export const createBookingRules = z.object({
 
 export const listMyBookingsQuery = z.object({
   role: z.enum(['worker', 'requester']).optional(),
-  status: z.enum(['pending', 'confirmed', 'cancelled', 'completed']).optional(),
+  status: z.enum(BookingStatus).optional(),
 })

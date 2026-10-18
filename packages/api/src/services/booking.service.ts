@@ -10,20 +10,12 @@ import { AppError } from '@/utils/AppError.js'
 import { logger } from '@/config/logger.js'
 import { enqueueNotification } from '@/queue/index.js'
 import type { BookingServiceDeps } from '@/container/types.js'
+import { BookingStatus } from '@bluecollar/types'
+import type { CreateBookingInput } from '@bluecollar/types'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export interface CreateBookingInput {
-  workerId: string
-  requesterId: string
-  /** ISO 8601 datetime — stored in UTC */
-  startTime: string
-  /** ISO 8601 datetime — stored in UTC */
-  endTime: string
-  timezone: string
-  note?: string
-  serviceDescription: string
-}
+export type { CreateBookingInput }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -100,7 +92,7 @@ export function createBookingService(deps: BookingServiceDeps) {
         timezone,
         note,
         serviceDescription,
-        status: 'pending',
+        status: BookingStatus.Pending,
       })
 
       logger.info({ bookingId: booking.id, workerId, requesterId }, 'Booking request created')
@@ -124,9 +116,9 @@ export function createBookingService(deps: BookingServiceDeps) {
       const booking = await repo.findBookingWithWorker(bookingId)
       if (!booking) throw new AppError('Booking not found', 404)
       if (booking.workerId !== workerId) throw new AppError('Unauthorized', 403)
-      if (booking.status !== 'pending') throw new AppError(`Cannot confirm a booking with status: ${booking.status}`, 400)
+      if (booking.status !== BookingStatus.Pending) throw new AppError(`Cannot confirm a booking with status: ${booking.status}`, 400)
 
-      const updated = await repo.updateBooking(bookingId, { status: 'confirmed' })
+      const updated = await repo.updateBooking(bookingId, { status: BookingStatus.Confirmed })
 
       await enqueueNotification({
         userId: booking.requesterId,
@@ -151,11 +143,11 @@ export function createBookingService(deps: BookingServiceDeps) {
       const isWorker = booking.worker.userId === userId
       if (!isRequester && !isWorker) throw new AppError('Unauthorized', 403)
 
-      if (['completed', 'cancelled'].includes(booking.status)) {
+      if ([BookingStatus.Completed, BookingStatus.Cancelled].includes(booking.status)) {
         throw new AppError(`Cannot cancel a booking with status: ${booking.status}`, 400)
       }
 
-      const updated = await repo.updateBooking(bookingId, { status: 'cancelled', cancellationReason: reason })
+      const updated = await repo.updateBooking(bookingId, { status: BookingStatus.Cancelled, cancellationReason: reason })
 
       const notifyUserId = isWorker ? booking.requesterId : booking.worker.userId
       await enqueueNotification({
@@ -174,7 +166,7 @@ export function createBookingService(deps: BookingServiceDeps) {
      */
     async getWorkerBookings(
       workerId: string,
-      options: { page?: number; limit?: number; status?: string } = {},
+      options: { page?: number; limit?: number; status?: BookingStatus } = {},
     ) {
       const { page = 1, limit = 20, status } = options
       return repo.findWorkerBookings(workerId, { page, limit, status })
@@ -185,7 +177,7 @@ export function createBookingService(deps: BookingServiceDeps) {
      */
     async getRequesterBookings(
       requesterId: string,
-      options: { page?: number; limit?: number; status?: string } = {},
+      options: { page?: number; limit?: number; status?: BookingStatus } = {},
     ) {
       const { page = 1, limit = 20, status } = options
       return repo.findRequesterBookings(requesterId, { page, limit, status })
@@ -213,14 +205,14 @@ export async function cancelBooking(bookingId: string, userId: string, reason?: 
 
 export async function getWorkerBookings(
   workerId: string,
-  options: { page?: number; limit?: number; status?: string } = {},
+  options: { page?: number; limit?: number; status?: BookingStatus } = {},
 ) {
   return _defaultService.getWorkerBookings(workerId, options)
 }
 
 export async function getRequesterBookings(
   requesterId: string,
-  options: { page?: number; limit?: number; status?: string } = {},
+  options: { page?: number; limit?: number; status?: BookingStatus } = {},
 ) {
   return _defaultService.getRequesterBookings(requesterId, options)
 }

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { X, BadgeCheck, MapPin, Star } from "lucide-react";
 import { useCompare } from "@/context/CompareContext";
-import type { Worker } from "@/types";
+import type { Worker } from "@bluecollar/types";
 
 function Cell({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <td className={`px-4 py-3 text-sm text-gray-700 border-b ${className}`}>{children}</td>;

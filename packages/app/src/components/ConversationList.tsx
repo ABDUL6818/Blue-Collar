@@ -2,7 +2,7 @@
 
 import { MessageSquare, Plus, User } from "lucide-react";
 import { cn, formatRelativeTime } from "@/lib/utils";
-import type { Conversation } from "@/types";
+import type { Conversation } from "@bluecollar/types";
 
 interface Props {
   conversations: Conversation[];

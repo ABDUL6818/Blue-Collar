@@ -1,4 +1,5 @@
 import type { Job, JobApplication, JobMessage, Prisma } from '@prisma/client'
+import { JobStatus } from '@bluecollar/types'
 import type { IRepository } from './base.repository.js'
 import { db } from '@/db.js'
 
@@ -99,7 +100,7 @@ export class JobRepository implements IJobRepository {
 
   async findExpiredOpen(): Promise<{ id: string; title: string; postedById: string }[]> {
     return db.job.findMany({
-      where: { status: 'open', expiresAt: { lt: new Date() } },
+      where: { status: JobStatus.OPEN, expiresAt: { lt: new Date() } },
       select: { id: true, title: true, postedById: true },
     })
   }
