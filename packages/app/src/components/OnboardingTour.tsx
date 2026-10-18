@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { X, ChevronRight, ChevronLeft, Search, Bookmark, Wallet, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useOnboardingState } from "@/hooks/useOnboardingState";
 
-const TOUR_KEY = "bc_tour_done";
 
 interface Step {
   icon: React.ReactNode;
@@ -40,18 +40,13 @@ const STEPS: Step[] = [
 ];
 
 export default function OnboardingTour() {
-  const [visible, setVisible] = useState(false);
+  const { needsOnboarding, markDone } = useOnboardingState();
   const [step, setStep] = useState(0);
-
-  useEffect(() => {
-    const done = localStorage.getItem(TOUR_KEY);
-    if (!done) setVisible(true);
-  }, []);
+  const visible = needsOnboarding;
 
   const close = useCallback(() => {
-    localStorage.setItem(TOUR_KEY, "1");
-    setVisible(false);
-  }, []);
+    markDone();
+  }, [markDone]);
 
   const next = () => {
     if (step < STEPS.length - 1) setStep((s) => s + 1);
