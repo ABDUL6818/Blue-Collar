@@ -252,6 +252,67 @@ describe('withdrawApplication', () => {
   })
 })
 
+describe('free-text sanitisation (integration)', () => {
+  const XSS = '<script>alert("xss")</script>'
+
+  it('createJob stores a sanitised title and description', async () => {
+    const createJobMock = vi.fn().mockResolvedValue({ id: 'job-1', title: 'Hello', description: 'World' })
+    const controller = createJobsController(makeFakeService({ createJob: createJobMock }))
+    const req = makeReq({
+      body: { title: `Hello ${XSS}`, description: `World ${XSS}` } as any,
+      user: { id: 'poster-1', role: 'user' } as any,
+    })
+    const res = makeRes()
+
+    await controller.createJob(req, res, next)
+    await flush()
+
+    const [payload] = createJobMock.mock.calls[0]
+    expect(payload.title).not.toContain('<script>')
+    expect(payload.description).not.toContain('<script>')
+    expect(payload.title).toContain('Hello')
+    expect(payload.description).toContain('World')
+    expect(res.status).toHaveBeenCalledWith(201)
+  })
+
+  it('updateJob stores a sanitised title and description', async () => {
+    const updateJobMock = vi.fn().mockResolvedValue({ id: 'job-1' })
+    const controller = createJobsController(makeFakeService({ updateJob: updateJobMock }))
+    const req = makeReq({
+      params: { id: 'job-1' } as any,
+      body: { title: `Hello ${XSS}`, description: `World ${XSS}` } as any,
+      user: { id: 'poster-1', role: 'user' } as any,
+    })
+    const res = makeRes()
+
+    await controller.updateJob(req, res, next)
+    await flush()
+
+    const [, payload] = updateJobMock.mock.calls[0]
+    expect(payload.title).not.toContain('<script>')
+    expect(payload.description).not.toContain('<script>')
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ status: 'success' }))
+  })
+
+  it('applyToJob stores a sanitised coverLetter', async () => {
+    const applyToJobMock = vi.fn().mockResolvedValue({ id: 'app-1' })
+    const controller = createJobsController(makeFakeService({ applyToJob: applyToJobMock }))
+    const req = makeReq({
+      params: { id: 'job-1' } as any,
+      body: { workerId: 'worker-1', coverLetter: `Hi ${XSS}`, proposedRate: 100 } as any,
+    })
+    const res = makeRes()
+
+    await controller.applyToJob(req, res, next)
+    await flush()
+
+    const [, , coverLetter] = applyToJobMock.mock.calls[0]
+    expect(coverLetter).not.toContain('<script>')
+    expect(coverLetter).toContain('Hi')
+    expect(res.status).toHaveBeenCalledWith(201)
+  })
+})
+
 describe('sendMessage / listMessages', () => {
   it('sendMessage creates a message and returns 201', async () => {
     const sendMessageMock = vi.fn().mockResolvedValue({ id: 'msg-1' })

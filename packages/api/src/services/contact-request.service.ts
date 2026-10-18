@@ -1,5 +1,6 @@
 import { contactRequestRepository as defaultContactRequestRepository } from '@/repositories/contact-request.repository.js'
 import { AppError } from '@/utils/AppError.js'
+import { sanitizeText } from '@/utils/sanitize.js'
 import { sendContactRequestEmail } from '@/mailer/index.js'
 import type { ContactRequestServiceDeps } from '@/container/types.js'
 
@@ -13,10 +14,12 @@ export function createContactRequestService(deps: ContactRequestServiceDeps) {
       const worker = await repo.findWorkerWithCurator(workerId)
       if (!worker) throw new AppError('Worker not found', 404)
 
+      const sanitizedMessage = sanitizeText(message)
+
       const contactRequest = await repo.createContactRequest({
         workerId,
         fromUserId,
-        message,
+        message: sanitizedMessage,
         status: 'pending',
       })
 

@@ -6,9 +6,18 @@ import type { CreateWorkerBody, UpdateWorkerBody } from '@/interfaces/index.js'
 import { publishEvent } from './webhook.service.js'
 import { appEvents } from '@/events/app-events.js'
 import { createServiceLogger } from '@/utils/logger.js'
+import { sanitizeFreeText } from '@/utils/sanitize.js'
 
 const logger = createServiceLogger('WorkerService')
 const workerInclude = { category: true, curator: true } as const
+
+function sanitizeWorkerText<T extends { name?: string; bio?: string | null }>(data: T): T {
+  return {
+    ...data,
+    ...(data.name !== undefined ? { name: sanitizeFreeText(data.name) } : {}),
+    ...(data.bio !== undefined ? { bio: data.bio === null ? null : sanitizeFreeText(data.bio) } : {}),
+  }
+}
 
 export async function getWorker(id: string) {
   const worker = await db.worker.findUnique({ where: { id, deletedAt: null }, include: workerInclude })
@@ -18,8 +27,9 @@ export async function getWorker(id: string) {
 
 export async function createWorker(data: CreateWorkerBody, curatorId: string) {
   logger.debug('Creating worker', { curatorId, name: data.name })
+  const sanitized = sanitizeWorkerText(data)
   const worker = await db.worker.create({
-    data: { ...data, curatorId, createdById: curatorId, updatedById: curatorId } satisfies Prisma.WorkerUncheckedCreateInput,
+    data: { ...sanitized, curatorId, createdById: curatorId, updatedById: curatorId } satisfies Prisma.WorkerUncheckedCreateInput,
     include: workerInclude,
   })
   publishEvent('worker.created', { worker: formatWorker(worker) }).catch(() => {})
@@ -30,9 +40,10 @@ export async function createWorker(data: CreateWorkerBody, curatorId: string) {
 
 export async function updateWorker(id: string, data: UpdateWorkerBody, updatedById?: string) {
   logger.debug('Updating worker', { workerId: id })
+  const sanitized = sanitizeWorkerText(data)
   const worker = await db.worker.update({
     where: { id },
-    data: { ...data, ...(updatedById ? { updatedById } : {}) } satisfies Prisma.WorkerUncheckedUpdateInput,
+    data: { ...sanitized, ...(updatedById ? { updatedById } : {}) } satisfies Prisma.WorkerUncheckedUpdateInput,
     include: workerInclude,
   })
   publishEvent('worker.updated', { worker: formatWorker(worker) }).catch(() => {})

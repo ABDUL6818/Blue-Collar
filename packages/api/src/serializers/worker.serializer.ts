@@ -2,6 +2,7 @@ import type { Worker, Category, User } from '@prisma/client'
 import { BaseSerializer } from './base.serializer.js'
 import { categorySerializer, type SerializedCategory } from './category.serializer.js'
 import { userSerializer, type SerializedUser } from './user.serializer.js'
+import { sanitizeText } from '../utils/sanitize.js'
 
 type WorkerWithRelations = Worker & {
   category?: Category | null
@@ -22,6 +23,9 @@ export class WorkerSerializer extends BaseSerializer<WorkerWithRelations, Serial
     const { searchVector: _searchVector, phone, email, category, curator, ...rest } = worker as WorkerWithRelations & { searchVector?: unknown }
     return {
       ...rest,
+      // SANITISATION: neutralise any legacy unsanitised free-text rows on display.
+      name: sanitizeText(rest.name),
+      bio: rest.bio == null ? rest.bio : sanitizeText(rest.bio),
       images: {
         thumb:  rest.imageThumb  ?? null,
         medium: rest.imageMedium ?? null,

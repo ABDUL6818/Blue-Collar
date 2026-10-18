@@ -5,6 +5,7 @@ import { ErrorMessages } from '@/constants/errors.js'
 import * as jobService from '@/services/job.service.js'
 import { validate } from '@/middleware/validate.js'
 import { parsePaginationParams } from '@/utils/pagination.js'
+import { sanitizeText } from '@/utils/sanitize.js'
 import {
   createJobSchema,
   updateJobSchema,
@@ -54,12 +55,18 @@ export function createJobsController(service: JobsService = jobService) {
     }),
 
     createJob: catchAsync(async (req: Request, res: Response) => {
-      const job = await service.createJob(req.body, req.user!.id)
+      const payload = { ...req.body }
+      if (typeof payload.title === 'string') payload.title = sanitizeText(payload.title)
+      if (typeof payload.description === 'string') payload.description = sanitizeText(payload.description)
+      const job = await service.createJob(payload, req.user!.id)
       return res.status(201).json({ data: job, status: 'success', code: 201 })
     }),
 
     updateJob: catchAsync(async (req: Request, res: Response) => {
-      const job = await service.updateJob(req.params.id, req.user!.id, req.body)
+      const payload = { ...req.body }
+      if (typeof payload.title === 'string') payload.title = sanitizeText(payload.title)
+      if (typeof payload.description === 'string') payload.description = sanitizeText(payload.description)
+      const job = await service.updateJob(req.params.id, req.user!.id, payload)
       return res.json({ data: job, status: 'success', code: 200 })
     }),
 
@@ -102,7 +109,8 @@ export function createJobsController(service: JobsService = jobService) {
     // ── Applications ─────────────────────────────────────────────────────────────
     applyToJob: catchAsync(async (req: Request, res: Response) => {
       const { workerId, coverLetter, proposedRate } = req.body
-      const application = await service.applyToJob(req.params.id, String(workerId), coverLetter, proposedRate)
+      const sanitizedCoverLetter = typeof coverLetter === 'string' ? sanitizeText(coverLetter) : coverLetter
+      const application = await service.applyToJob(req.params.id, String(workerId), sanitizedCoverLetter, proposedRate)
       return res.status(201).json({ data: application, status: 'success', code: 201 })
     }),
 
@@ -133,7 +141,8 @@ export function createJobsController(service: JobsService = jobService) {
     // ── Messaging ────────────────────────────────────────────────────────────────
     sendMessage: catchAsync(async (req: Request, res: Response) => {
       const { recipientId, body } = req.body
-      const message = await service.sendMessage(req.params.id, req.user!.id, recipientId, body)
+      const sanitizedBody = typeof body === 'string' ? sanitizeText(body) : body
+      const message = await service.sendMessage(req.params.id, req.user!.id, recipientId, sanitizedBody)
       return res.status(201).json({ data: message, status: 'success', code: 201 })
     }),
 
