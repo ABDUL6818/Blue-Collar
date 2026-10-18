@@ -1,20 +1,28 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+import { useRouter, useSearchParams } from "next/navigation";
 import FriendbotBanner from "@/components/FriendbotBanner";
 import { DashboardTableSkeleton } from "@/components/Skeleton";
 import {
   DashboardHeader,
   DashboardTabs,
   WorkersPanel,
-  AnalyticsPanel,
   DeleteWorkerDialog,
 } from "@/components/Dashboard";
+import type { DashboardTabType } from "@/components/Dashboard";
+
+// The analytics panel is only needed on its tab, so it loads on demand.
+const AnalyticsPanel = dynamic(
+  () => import("@/components/Dashboard").then((m) => m.AnalyticsPanel),
+  { loading: () => null },
+);
 import { useCuratorDashboard } from "@/hooks/useCuratorDashboard";
 
 export default function DashboardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const {
     user,
     authLoading,
@@ -49,6 +57,13 @@ export default function DashboardPage() {
     }
   }, [user, authLoading, router]);
 
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab === "workers" || tab === "analytics") setActiveTab(tab);
+    // Read the tab once on mount so a shared link opens the same tab.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   if (authLoading || (!user && !authLoading)) {
     return (
       <div className="mx-auto max-w-6xl px-4 py-10">
@@ -67,7 +82,13 @@ export default function DashboardPage() {
       <DashboardHeader />
 
       {/* Tabs */}
-      <DashboardTabs activeTab={activeTab} onTabChange={setActiveTab} />
+      <DashboardTabs
+        activeTab={activeTab}
+        onTabChange={(tab: DashboardTabType) => {
+          setActiveTab(tab);
+          router.replace(`?tab=${tab}`, { scroll: false });
+        }}
+      />
 
       {/* Error banner */}
       {error && (
