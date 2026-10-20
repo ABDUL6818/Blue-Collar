@@ -135,6 +135,21 @@ fn test_submit_review_rating_overflow() {
     );
 }
 
+#[test]
+fn test_submit_review_rating_at_max_score_accepted() {
+    let (env, _admin, rep_mgr, _worker) = setup();
+    let contract_id = env.register_contract(None, ReputationContract);
+    let client = ReputationContractClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    client.initialize(&admin);
+    client.grant_role(&admin, &Symbol::new(&env, ROLE_REP_MGR), &rep_mgr);
+
+    let worker_id = Symbol::new(&env, "worker1");
+    // Exact MAX_SCORE boundary must be accepted (not rejected).
+    client.submit_review(&rep_mgr, &worker_id, &MAX_SCORE, &zero_hash(&env));
+    assert_eq!(client.get_score(&worker_id), MAX_SCORE);
+}
+
 // ---------------------------------------------------------------------------
 // slash_reputation — access control regression (#1017 finding 2)
 // ---------------------------------------------------------------------------
@@ -203,6 +218,23 @@ fn test_slash_reputation_overflow_input() {
         client.try_slash_reputation(&rep_mgr, &worker_id, &10_001),
         Err(Ok(ContractError::ScoreOutOfRange))
     );
+}
+
+#[test]
+fn test_slash_reputation_at_max_score_accepted() {
+    let (env, _admin, rep_mgr, _worker) = setup();
+    let contract_id = env.register_contract(None, ReputationContract);
+    let client = ReputationContractClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    client.initialize(&admin);
+    client.grant_role(&admin, &Symbol::new(&env, ROLE_REP_MGR), &rep_mgr);
+
+    let worker_id = Symbol::new(&env, "worker1");
+    // Give worker a score first, then slash with exact MAX_SCORE — must not be rejected.
+    client.submit_review(&rep_mgr, &worker_id, &MAX_SCORE, &zero_hash(&env));
+    client.slash_reputation(&rep_mgr, &worker_id, &MAX_SCORE);
+    // saturating_sub clamps at 0
+    assert_eq!(client.get_score(&worker_id), 0);
 }
 
 // ---------------------------------------------------------------------------
