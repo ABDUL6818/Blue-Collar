@@ -30,6 +30,11 @@ mod logic;
 mod skill_certification;
 mod storage;
 
+use bluecollar_types::events::{
+    ContractPaused, ContractUnpaused, CuratorAdded, CuratorRemoved, ReputationUpdated,
+    ReviewSubmitted, ReputationSlashed, RoleGranted, RoleRevoked, WorkerDeregistered,
+    WorkerRegistered, WorkerToggled, WorkerUpdated,
+};
 use bluecollar_types::ContractError;
 use soroban_sdk::{
     contract, contractimpl, symbol_short, token, Address, BytesN, Env, String, Symbol, Vec,
@@ -78,8 +83,7 @@ impl RegistryContract {
         members.push_back(admin.clone());
         storage::set_role_members(&env, role_id, &members);
 
-        env.events()
-            .publish((symbol_short!("RlGrnt"), role, admin), ());
+        RoleGranted { role, admin }.publish(&env);
         Ok(())
     }
 
@@ -104,8 +108,7 @@ impl RegistryContract {
             members.push_back(account.clone());
             storage::set_role_members(&env, role_id, &members);
         }
-        env.events()
-            .publish((symbol_short!("RlGrnt"), role, account), ());
+        RoleGranted { role, admin: account }.publish(&env);
         Ok(())
     }
 
@@ -135,8 +138,7 @@ impl RegistryContract {
             return Err(ContractError::AccountDoesNotHoldRole);
         }
         storage::set_role_members(&env, role_id, &updated);
-        env.events()
-            .publish((symbol_short!("RlRvkd"), role, account), ());
+        RoleRevoked { role, account }.publish(&env);
         Ok(())
     }
 
@@ -255,7 +257,7 @@ impl RegistryContract {
         let pauser_role = logic::role_symbol(&env, ROLE_PAUSER_CACHED);
         logic::require_role(&env, &pauser_role, &admin)?;
         env.storage().instance().set(&DataKey::Paused, &true);
-        env.events().publish((symbol_short!("Paused"), admin), ());
+        ContractPaused { admin }.publish(&env);
         Ok(())
     }
 
@@ -264,7 +266,7 @@ impl RegistryContract {
         let pauser_role = logic::role_symbol(&env, ROLE_PAUSER_CACHED);
         logic::require_role(&env, &pauser_role, &admin)?;
         env.storage().instance().set(&DataKey::Paused, &false);
-        env.events().publish((symbol_short!("Unpaused"), admin), ());
+        ContractUnpaused { admin }.publish(&env);
         Ok(())
     }
 
@@ -295,8 +297,7 @@ impl RegistryContract {
             curators.push_back(curator.clone());
             storage::set_curators(&env, &curators);
         }
-        env.events()
-            .publish((symbol_short!("CurAdd"), admin, curator), ());
+        CuratorAdded { admin, curator }.publish(&env);
         Ok(())
     }
 
@@ -317,8 +318,7 @@ impl RegistryContract {
             }
         }
         storage::set_curators(&env, &updated);
-        env.events()
-            .publish((symbol_short!("CurRem"), admin, curator), ());
+        CuratorRemoved { admin, curator }.publish(&env);
         Ok(())
     }
 
@@ -385,8 +385,7 @@ impl RegistryContract {
         storage::set_worker_list(&env, &list);
         storage::increment_worker_count(&env);
 
-        env.events()
-            .publish((symbol_short!("WrkReg"), id), (owner, category));
+        WorkerRegistered { id, owner, category }.publish(&env);
         Ok(())
     }
 
@@ -407,8 +406,7 @@ impl RegistryContract {
         worker.is_active = !worker.is_active;
         let new_status = worker.is_active;
         storage::set_worker(&env, &worker);
-        env.events()
-            .publish((symbol_short!("WrkTgl"), id), new_status);
+        WorkerToggled { id, is_active: new_status }.publish(&env);
         Ok(())
     }
 
@@ -435,8 +433,7 @@ impl RegistryContract {
         worker.location_hash = location_hash;
         worker.contact_hash = contact_hash;
         storage::set_worker(&env, &worker);
-        env.events()
-            .publish((symbol_short!("WrkUpd"), id), (name, category));
+        WorkerUpdated { id, caller, wallet: worker.wallet.clone() }.publish(&env);
         Ok(())
     }
 
@@ -461,10 +458,7 @@ impl RegistryContract {
         worker.category = category.clone();
         worker.wallet = wallet.clone();
         storage::set_worker(&env, &worker);
-        env.events().publish(
-            (symbol_short!("WrkUpd"), id, caller),
-            (name, category, wallet),
-        );
+        WorkerUpdated { id, caller, wallet }.publish(&env);
         Ok(())
     }
 

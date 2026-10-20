@@ -1,5 +1,6 @@
 import * as deviceRepo from '@/repositories/device.repository.js'
 import { AppError } from '@/utils/AppError.js'
+import { nowUtc, parseUtcDate, addUtcMs, formatUtcIso } from '@/utils/date.js'
 
 export async function registerDevice(userId: string, deviceName: string, userAgent: string | undefined, ipAddress: string) {
   return deviceRepo.createDevice(userId, deviceName, userAgent, ipAddress)

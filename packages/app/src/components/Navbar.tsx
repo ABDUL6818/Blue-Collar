@@ -3,81 +3,18 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
-import { Menu, Wallet, ChevronDown, User, Sun, Moon, Globe, X, MessageSquare } from "lucide-react";
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { useTheme } from "next-themes";
+import { Menu, Wallet, User, X, MessageSquare } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
 import { useLocale, useTranslations } from "next-intl";
 import { cn, formatStellarAddress } from "@/lib/utils";
-import NotificationDropdown from "@/components/NotificationDropdown";
-import { WalletBalanceWidget } from "@/components/wallet/WalletBalanceWidget";
-
-const LANGUAGES = [
-  { code: "en", label: "English" },
-  { code: "fr", label: "Français" },
-  { code: "es", label: "Español" },
-];
+import { NavLinks, isPathActive } from "@/components/Navbar/NavLinks";
+import { NavActions, LANGUAGES, ThemeToggle } from "@/components/Navbar/NavActions";
+import { AccountMenu } from "@/components/Navbar/AccountMenu";
 
 /** Selectors for everything focusable inside the mobile drawer. */
 const FOCUSABLE =
   'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])';
-
-function isPathActive(pathname: string, href: string) {
-  return pathname === href || (href !== "/" && pathname.startsWith(href));
-}
-
-function NavLink({ href, label, onClick }: { href: string; label: string; onClick?: () => void }) {
-  const pathname = usePathname();
-  const isActive = isPathActive(pathname, href);
-  return (
-    <Link
-      href={href}
-      onClick={onClick}
-      // Colour and an underline alone don't convey "current page" to assistive
-      // tech — aria-current does.
-      aria-current={isActive ? "page" : undefined}
-      className={cn(
-        "relative rounded text-sm font-medium transition-colors hover:text-blue-600",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",
-        isActive
-          ? "text-blue-600 font-semibold"
-          : "text-gray-600 dark:text-gray-300"
-      )}
-    >
-      {label}
-      {isActive && (
-        <span
-          aria-hidden="true"
-          className="absolute -bottom-0.5 left-0 h-0.5 w-full rounded-full bg-blue-600"
-        />
-      )}
-    </Link>
-  );
-}
-
-function ThemeToggle({ className }: { className?: string }) {
-  const { resolvedTheme, setTheme } = useTheme();
-  const t = useTranslations("nav");
-  return (
-    <button
-      type="button"
-      onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-      className={cn(
-        "rounded-md p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 min-w-[40px] min-h-[40px] flex items-center justify-center",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
-        className
-      )}
-      aria-label={t("theme")}
-    >
-      {resolvedTheme === "dark" ? (
-        <Sun size={18} aria-hidden="true" />
-      ) : (
-        <Moon size={18} aria-hidden="true" />
-      )}
-    </button>
-  );
-}
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -168,8 +105,6 @@ export default function Navbar() {
     { href: "/about", label: t("about") },
   ];
 
-  const currentLanguageLabel =
-    LANGUAGES.find((l) => l.code === locale)?.label ?? locale.toUpperCase();
 
   return (
     <>
@@ -185,129 +120,13 @@ export default function Navbar() {
             BlueCollar
           </Link>
 
-          <ul className="hidden list-none items-center gap-6 md:flex">
-            {NAV_LINKS.map((l) => (
-              <li key={l.href}>
-                <NavLink {...l} />
-              </li>
-            ))}
-          </ul>
+          <NavLinks links={NAV_LINKS} />
 
           <div className="hidden items-center gap-3 md:flex">
-            <ThemeToggle />
-            <NotificationDropdown />
-
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger asChild>
-                <button
-                  type="button"
-                  aria-label={t("changeLanguage", { language: currentLanguageLabel })}
-                  className="flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800 dark:text-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                >
-                  <Globe size={15} aria-hidden="true" />
-                  {locale.toUpperCase()}
-                </button>
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Portal>
-                <DropdownMenu.Content align="end" sideOffset={6} className="z-50 min-w-[120px] rounded-md border bg-white p-1 shadow-md text-sm dark:bg-gray-900 dark:border-gray-700">
-                  {LANGUAGES.map((lang) => (
-                    <DropdownMenu.Item
-                      key={lang.code}
-                      onSelect={() => handleLanguageChange(lang.code)}
-                      aria-current={lang.code === locale ? "true" : undefined}
-                      className="cursor-pointer rounded px-3 py-2 hover:bg-gray-100 outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:bg-gray-800 dark:text-gray-200"
-                    >
-                      {lang.label}
-                    </DropdownMenu.Item>
-                  ))}
-                </DropdownMenu.Content>
-              </DropdownMenu.Portal>
-            </DropdownMenu.Root>
-
-            {publicKey ? (
-              <DropdownMenu.Root>
-                <DropdownMenu.Trigger asChild>
-                  <button
-                    type="button"
-                    aria-label={t("walletMenu")}
-                    className="flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800 dark:text-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                  >
-                    <Wallet size={15} aria-hidden="true" />
-                    {shortAddress}
-                    {network && (
-                      <span className={cn(
-                        "rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase",
-                        network.toLowerCase().includes("test")
-                          ? "bg-yellow-100 text-yellow-700"
-                          : "bg-green-100 text-green-700"
-                      )}>
-                        {network.toLowerCase().includes("test") ? t("testnet") : t("mainnet")}
-                      </span>
-                    )}
-                    <ChevronDown size={13} aria-hidden="true" />
-                  </button>
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Portal>
-                  <DropdownMenu.Content align="end" sideOffset={6} className="z-50 min-w-[180px] rounded-md border bg-white p-1 shadow-md text-sm dark:bg-gray-900 dark:border-gray-700">
-                    <div className="px-3 py-2 text-xs text-gray-400 font-mono break-all">{publicKey}</div>
-                    {/* Balance rendered via selector — only this sub-tree re-renders on balance change */}
-                    <div className="px-3 pb-2">
-                      <WalletBalanceWidget />
-                    </div>
-                    <DropdownMenu.Separator className="my-1 h-px bg-gray-100 dark:bg-gray-700" />
-                    <DropdownMenu.Item onSelect={disconnect} className="cursor-pointer rounded px-3 py-2 text-red-600 hover:bg-red-50 outline-none dark:hover:bg-red-950">
-                      {t("disconnectWallet")}
-                    </DropdownMenu.Item>
-                  </DropdownMenu.Content>
-                </DropdownMenu.Portal>
-              </DropdownMenu.Root>
-            ) : (
-              <button
-                type="button"
-                onClick={connect}
-                disabled={isConnecting}
-                aria-busy={isConnecting}
-                className="flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium hover:bg-gray-50 disabled:opacity-60 dark:border-gray-700 dark:hover:bg-gray-800 dark:text-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-              >
-                <Wallet size={15} aria-hidden="true" />
-                {isConnecting ? t("connecting") : t("connectWallet")}
-              </button>
-            )}
-
-            {user ? (
-              <DropdownMenu.Root>
-                <DropdownMenu.Trigger asChild>
-                  <button
-                    type="button"
-                    aria-label={t("accountMenu", { name: user.firstName })}
-                    className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800 dark:text-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                  >
-                    <User size={15} aria-hidden="true" />
-                    {user.firstName}
-                    <ChevronDown size={13} aria-hidden="true" />
-                  </button>
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Portal>
-                  <DropdownMenu.Content align="end" sideOffset={6} className="z-50 min-w-[160px] rounded-md border bg-white p-1 shadow-md text-sm dark:bg-gray-900 dark:border-gray-700">
-                    <DropdownMenu.Item onSelect={() => router.push("/profile")} className="cursor-pointer rounded px-3 py-2 hover:bg-gray-100 outline-none dark:hover:bg-gray-800 dark:text-gray-200">{t("profile")}</DropdownMenu.Item>
-                    {(user.role === "curator" || user.role === "admin") && (
-                      <DropdownMenu.Item onSelect={() => router.push("/dashboard")} className="cursor-pointer rounded px-3 py-2 hover:bg-gray-100 outline-none dark:hover:bg-gray-800 dark:text-gray-200">{t("dashboard")}</DropdownMenu.Item>
-                    )}
-                    {user.role === "admin" && (
-                      <DropdownMenu.Item onSelect={() => router.push("/dashboard/admin")} className="cursor-pointer rounded px-3 py-2 hover:bg-gray-100 outline-none dark:hover:bg-gray-800 dark:text-gray-200">{t("adminAnalytics")}</DropdownMenu.Item>
-                    )}
-                    <DropdownMenu.Separator className="my-1 h-px bg-gray-100 dark:bg-gray-700" />
-                    <DropdownMenu.Item onSelect={logout} className="cursor-pointer rounded px-3 py-2 text-red-600 hover:bg-red-50 outline-none dark:hover:bg-red-950">{t("logout")}</DropdownMenu.Item>
-                  </DropdownMenu.Content>
-                </DropdownMenu.Portal>
-              </DropdownMenu.Root>
-            ) : (
-              <>
-                <Link href="/auth/login" className="rounded-md px-3 py-1.5 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-200">{t("login")}</Link>
-                <Link href="/auth/register" className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700">{t("register")}</Link>
-              </>
-            )}
+            <NavActions onLanguageChange={handleLanguageChange} />
+            <AccountMenu />
           </div>
+
 
           <button
             ref={menuButtonRef}

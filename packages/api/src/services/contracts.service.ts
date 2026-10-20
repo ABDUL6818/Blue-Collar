@@ -9,6 +9,7 @@
  */
 
 import { AppError, ErrorCode } from '@/utils/AppError.js'
+import { parseUtcDate } from '@/utils/date.js'
 import * as escrowService from './escrow.service.js'
 import * as disputeService from './dispute.service.js'
 import { paymentService, type TipParams, type EscrowParams } from './payment.service.js'
@@ -42,7 +43,7 @@ export async function createEscrowRecord(payerId: string, input: CreateEscrowInp
     payerId,
     payeeId,
     amountXlm: Number(amountXlm),
-    expiresAt: new Date(expiresAt),
+    expiresAt: parseUtcDate(expiresAt),
     txId,
   })
 }
@@ -140,7 +141,7 @@ export function createPaymentEscrow(input: CreatePaymentEscrowInput) {
   if (!from || !to || amount === undefined || !expiryDate) {
     throw new AppError('from, to, amount, and expiryDate are required', 400, true, ErrorCode.VALIDATION_ERROR)
   }
-  return paymentService.createEscrow({ from, to, amount: Number(amount), expiryDate: new Date(expiryDate) })
+  return paymentService.createEscrow({ from, to, amount: Number(amount), expiryDate: parseUtcDate(expiryDate) })
 }
 
 /**

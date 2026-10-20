@@ -10,4 +10,5 @@ export {
   tokenField,
   phoneField,
   stellarAddressField,
+  sanitisedStringField,
 } from '@bluecollar/types'

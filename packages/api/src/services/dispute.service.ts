@@ -1,5 +1,6 @@
 import { disputeRepository as defaultDisputeRepository } from '@/repositories/dispute.repository.js'
 import { AppError, ErrorCode } from '@/utils/AppError.js'
+import { sanitizeText } from '@/utils/sanitize.js'
 import type { DisputeServiceDeps } from '@/container/types.js'
 
 // ── Factory ───────────────────────────────────────────────────────────────────
@@ -15,7 +16,15 @@ export function createDisputeService(deps: DisputeServiceDeps) {
       const worker = await repo.findWorkerById(workerId)
       if (!worker) throw new AppError('Worker not found', 404, true, ErrorCode.NOT_FOUND)
 
-      return repo.createDispute({ workerId, filedById, reason, evidence })
+      const sanitizedReason = sanitizeText(reason)
+      const sanitizedEvidence = evidence === undefined ? undefined : sanitizeText(evidence)
+
+      return repo.createDispute({
+        workerId,
+        filedById,
+        reason: sanitizedReason,
+        evidence: sanitizedEvidence,
+      })
     },
 
     /**
@@ -52,7 +61,13 @@ export function createDisputeService(deps: DisputeServiceDeps) {
         throw new AppError('Dispute has already been resolved', 409, true, ErrorCode.CONFLICT)
       }
 
-      return repo.updateDispute(id, { status, resolution, resolvedById: adminId })
+      const sanitizedResolution = resolution === undefined ? undefined : sanitizeText(resolution)
+
+      return repo.updateDispute(id, {
+        status,
+        resolution: sanitizedResolution,
+        resolvedById: adminId,
+      })
     },
   }
 }

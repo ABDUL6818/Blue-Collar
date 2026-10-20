@@ -1,4 +1,5 @@
 import type { Slot } from "@/components/AvailabilityCalendar";
+import { isBeforeDay, isSameDay } from "@/lib/date";
 
 const DAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const MONTH_NAMES = [
@@ -13,12 +14,6 @@ interface CalendarGridProps {
   rangeStart: Date | null;
   rangeEnd: Date | null;
   onDayClick: (date: Date) => void;
-}
-
-function isSameDay(a: Date, b: Date) {
-  return a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate();
 }
 
 function inRange(date: Date, start: Date | null, end: Date | null) {
@@ -52,7 +47,7 @@ export default function CalendarGrid({
 
         const dow = date.getDay();
         const isAvailable = availableDays.has(dow);
-        const isPast = date < today && !isSameDay(date, today);
+        const isPast = isBeforeDay(date, today);
         const isStart = rangeStart && isSameDay(date, rangeStart);
         const isEnd = rangeEnd && isSameDay(date, rangeEnd);
         const isInRange = inRange(date, rangeStart, rangeEnd);

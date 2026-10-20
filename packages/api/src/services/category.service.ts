@@ -4,6 +4,7 @@ import { db as defaultDb } from '@/db.js'
 import { AppError } from '@/utils/AppError.js'
 import type { CategoryServiceDeps } from '@/container/types.js'
 import type { PrismaClient } from '@prisma/client'
+import { nowUtc, parseUtcDate, addUtcMs, formatUtcIso } from '@/utils/date.js'
 
 // ── Service instance type ─────────────────────────────────────────────────────
 

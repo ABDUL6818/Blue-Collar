@@ -4,15 +4,34 @@
  * All business logic and validation lives in contracts.service / dispute.service.
  */
 import type { Request, Response } from 'express'
+import { z } from 'zod'
 import { catchAsync } from '@/utils/catchAsync.js'
+import { validate } from '@/middleware/validate.js'
+import { sanitizeText } from '@/utils/sanitize.js'
 import * as contractsService from '@/services/contracts.service.js'
 
-/** POST /api/disputes — file a dispute against a worker */
-export const createDispute = catchAsync(async (req: Request, res: Response) => {
-  const { workerId, reason, evidence } = req.body
-  const dispute = await contractsService.fileWorkerDispute(workerId, req.user!.id, reason, evidence)
-  return res.status(201).json({ data: dispute, status: 'success', code: 201 })
+/** Zod schema for dispute creation — validates and sanitises free-text fields. */
+export const createDisputeSchema = z.object({
+  body: z.object({
+    workerId: z.string().min(1),
+    reason: z.string().min(1).max(2000).transform(sanitizeText),
+    evidence: z
+      .string()
+      .max(5000)
+      .transform(sanitizeText)
+      .optional(),
+  }),
 })
+
+/** POST /api/disputes — file a dispute against a worker */
+export const createDispute = [
+  validate(createDisputeSchema),
+  catchAsync(async (req: Request, res: Response) => {
+    const { workerId, reason, evidence } = req.body
+    const dispute = await contractsService.fileWorkerDispute(workerId, req.user!.id, reason, evidence)
+    return res.status(201).json({ data: dispute, status: 'success', code: 201 })
+  }),
+]
 
 /** GET /api/disputes — list disputes (admin: all; user: own) */
 export const listDisputes = catchAsync(async (req: Request, res: Response) => {
@@ -31,11 +50,13 @@ export const getDispute = catchAsync(async (req: Request, res: Response) => {
 /** PATCH /api/disputes/:id/resolve — resolve/dismiss a dispute (admin only) */
 export const resolveDispute = catchAsync(async (req: Request, res: Response) => {
   const { status, resolution } = req.body
+  const sanitizedResolution =
+    typeof resolution === 'string' ? sanitizeText(resolution) : resolution
   const dispute = await contractsService.dispute.resolveDispute(
     req.params.id,
     req.user!.id,
     status,
-    resolution,
+    sanitizedResolution,
   )
   return res.json({ data: dispute, status: 'success', code: 200 })
 })

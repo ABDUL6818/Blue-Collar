@@ -3,6 +3,7 @@ import { notificationRepository as defaultNotificationRepository } from '@/repos
 import { AppError } from '@/utils/AppError.js'
 import { logger } from '@/config/logger.js'
 import { mailer } from '@/mailer/index.js'
+import { nowUtc, addUtcMs } from '@/utils/date.js'
 import * as pushService from './push.service.js'
 import type { NotificationServiceDeps } from '@/container/types.js'
 
@@ -59,7 +60,7 @@ function shouldSendPush(prefs: NotificationPrefsView, type: string): boolean {
 
 function isDuplicate(dedupKey: string): boolean {
   const cached = deliveryCache.get(dedupKey)
-  if (cached && Date.now() - cached[0].sentAt.getTime() < DEDUP_WINDOW) {
+  if (cached && nowUtc().getTime() - cached[0].sentAt.getTime() < DEDUP_WINDOW) {
     return true
   }
   return false
@@ -115,7 +116,7 @@ export function createNotificationService(deps: NotificationServiceDeps) {
             text: payload.message,
             html: `<p>${payload.message}</p>${payload.href ? `<a href="${payload.href}">View</a>` : ''}`,
           })
-          logs.push({ notificationId: notification.id, userId: payload.userId, channel: 'email', status: 'sent', sentAt: new Date() })
+          logs.push({ notificationId: notification.id, userId: payload.userId, channel: 'email', status: 'sent', sentAt: nowUtc() })
         } catch (error) {
           logger.error({ error, userId: payload.userId }, 'Email notification failed')
           logs.push({
@@ -124,7 +125,7 @@ export function createNotificationService(deps: NotificationServiceDeps) {
             channel: 'email',
             status: 'failed',
             error: error instanceof Error ? error.message : 'Unknown error',
-            sentAt: new Date(),
+            sentAt: nowUtc(),
           })
         }
       }
@@ -136,7 +137,7 @@ export function createNotificationService(deps: NotificationServiceDeps) {
             body: payload.message,
             tag: payload.type,
           })
-          logs.push({ notificationId: notification.id, userId: payload.userId, channel: 'push', status: 'sent', sentAt: new Date() })
+          logs.push({ notificationId: notification.id, userId: payload.userId, channel: 'push', status: 'sent', sentAt: nowUtc() })
         } catch (error) {
           logger.error({ error, userId: payload.userId }, 'Push notification failed')
           logs.push({
@@ -145,7 +146,7 @@ export function createNotificationService(deps: NotificationServiceDeps) {
             channel: 'push',
             status: 'failed',
             error: error instanceof Error ? error.message : 'Unknown error',
-            sentAt: new Date(),
+            sentAt: nowUtc(),
           })
         }
       }
@@ -177,7 +178,7 @@ export function createNotificationService(deps: NotificationServiceDeps) {
       const prefs = await repo.findPreferences(userId)
       if (!prefs) return false
 
-      const hour = new Date().getHours()
+      const hour = nowUtc().getUTCHours()
       return hour >= 22 || hour < 8
     },
   }

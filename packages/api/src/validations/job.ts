@@ -1,17 +1,12 @@
 import { z } from 'zod'
-import {
-  JOB_STATUSES,
-  JOB_APPLICATION_STATUSES,
-  JOB_URGENCY_LEVELS,
-  type ListJobsQuery,
-} from '@bluecollar/types'
+import { sanitizedString } from './sanitize'
 
 export const createJobSchema = z.object({
-  title: z.string().min(5).max(120),
-  description: z.string().min(20).max(5000),
+  title: sanitizedString({ min: 5, max: 120 }),
+  description: sanitizedString({ min: 20, max: 5000 }),
   budget: z.number().positive().optional(),
-  skills: z.array(z.string().min(1).max(60)).max(20).default([]),
-  urgency: z.enum(JOB_URGENCY_LEVELS).default('normal'),
+  skills: z.array(sanitizedString({ min: 1, max: 60 })).max(20).default([]),
+  urgency: z.enum(['low', 'normal', 'urgent']).default('normal'),
   categoryId: z.string().min(1),
   locationId: z.string().optional(),
   expiresAt: z.string().datetime().optional(),
@@ -24,7 +19,7 @@ export const updateJobSchema = createJobSchema.partial().extend({
 
 export const applyToJobSchema = z.object({
   workerId: z.string().min(1),
-  coverLetter: z.string().min(20).max(2000).optional(),
+  coverLetter: sanitizedString({ min: 20, max: 2000 }).optional(),
   proposedRate: z.number().positive().optional(),
 })
 
@@ -34,7 +29,7 @@ export const updateApplicationStatusSchema = z.object({
 
 export const sendMessageSchema = z.object({
   recipientId: z.string().min(1),
-  body: z.string().min(1).max(2000),
+  body: sanitizedString({ min: 1, max: 2000 }),
 })
 
 export const listJobsQuerySchema = z.object({

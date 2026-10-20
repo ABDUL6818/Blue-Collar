@@ -2,6 +2,7 @@ import { bookmarkRepository as defaultBookmarkRepository } from '@/repositories/
 import { AppError } from '@/utils/AppError.js'
 import { updateBookmarkCount } from './analytics/index.js'
 import type { BookmarkServiceDeps } from '@/container/types.js'
+import { nowUtc, parseUtcDate, addUtcMs, formatUtcIso } from '@/utils/date.js'
 
 // ── Factory ───────────────────────────────────────────────────────────────────
 

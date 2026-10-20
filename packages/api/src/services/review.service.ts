@@ -1,6 +1,7 @@
 import { reviewRepository as defaultReviewRepository } from '@/repositories/review.repository.js'
 import { AppError } from '@/utils/AppError.js'
 import { createServiceLogger } from '@/utils/logger.js'
+import { sanitizeText } from '@/utils/sanitize.js'
 import type { ReviewServiceDeps } from '@/container/types.js'
 
 const logger = createServiceLogger('ReviewService')
@@ -53,11 +54,15 @@ export function createReviewService(deps: ReviewServiceDeps) {
 
       logger.info('Creating review', { workerId, authorId, rating, isVerified })
 
+      // Neutralise any HTML/script content in the free-text comment before storage,
+      // even if the controller-level validation is bypassed.
+      const sanitizedComment = comment ? sanitizeText(comment) : comment
+
       return repo.createReview({
         workerId,
         authorId,
         rating,
-        comment,
+        comment: sanitizedComment,
         transactionHash,
         isVerified,
         status: 'pending',
@@ -106,7 +111,7 @@ export function createReviewService(deps: ReviewServiceDeps) {
     async flagReview(reviewId: string, reason: string) {
       const review = await repo.findById(reviewId)
       if (!review) throw new AppError('Review not found', 404)
-      return repo.updateReview(reviewId, { flagged: true, flagReason: reason })
+      return repo.updateReview(reviewId, { flagged: true, flagReason: sanitizeText(reason) })
     },
 
     /**
@@ -124,7 +129,7 @@ export function createReviewService(deps: ReviewServiceDeps) {
     async rejectReview(reviewId: string, reason?: string) {
       const review = await repo.findById(reviewId)
       if (!review) throw new AppError('Review not found', 404)
-      return repo.updateReview(reviewId, { status: 'rejected', flagReason: reason })
+      return repo.updateReview(reviewId, { status: 'rejected', flagReason: reason ? sanitizeText(reason) : reason })
     },
   }
 }

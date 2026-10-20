@@ -10,14 +10,39 @@ export {
   createReviewSchema as createReviewRules,
 } from '@bluecollar/types'
 
+/**
+ * Issue #1685 — Shared sanitised free-text field.
+ *
+ * Free-text inputs (bios, messages, names, etc.) must be bounded in length and
+ * stripped of HTML/script payloads before storage or display.  This helper
+ * composes a Zod string with a max length and a transform that removes
+ * script-tag payloads and angle brackets, providing defence-in-depth alongside
+ * the escaping performed at render time.
+ */
+export const sanitizedString = (max: number, min = 0) =>
+  z
+    .string()
+    .min(min)
+    .max(max)
+    .transform((value) =>
+      value
+        // Strip <script>...</script> blocks (case-insensitive, dotall)
+        .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
+        // Strip any remaining HTML tags
+        .replace(/<[^>]*>/g, '')
+        // Neutralise stray angle brackets
+        .replace(/[<>]/g, '')
+        .trim(),
+    )
+
 // POST /workers/:id/contact — API-only (no frontend form schema needed)
 export const contactRequestRules = z.object({
-  message: z.string().min(10, 'Message must be at least 10 characters'),
+  message: sanitizedString(2000, 10),
 })
 
 // Advanced search — API-only query parsing
 export const advancedSearchRules = z.object({
-  query: z.string().optional(),
+  query: sanitizedString(200).optional(),
   lat: z.coerce.number().optional(),
   lng: z.coerce.number().optional(),
   radius: z.coerce.number().min(0.1).max(1000).optional(),

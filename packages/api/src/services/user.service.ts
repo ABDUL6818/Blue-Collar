@@ -7,6 +7,7 @@ import { db } from '@/db.js'
 import { sendVerificationEmail } from '@/mailer/index.js'
 import { sanitizeUser } from '@/models/user.model.js'
 import { AppError, ErrorCode } from '@/utils/AppError.js'
+import { addUtcMs } from '@/utils/date.js'
 import { createServiceLogger } from '@/utils/logger.js'
 import { userRepository as defaultUserRepository } from '@/repositories/user.repository.js'
 import type { UserServiceDeps } from '@/container/types.js'
@@ -16,15 +17,28 @@ const logger = createServiceLogger('UserService')
 const updateProfileSchema = z.object({
   firstName: z.string().min(1).max(50).optional(),
   lastName: z.string().min(1).max(50).optional(),
+  bio: z.string().max(2000).optional(),
   email: z.string().email().optional(),
 })
+
+/**
+ * Strip HTML tags and escape remaining angle brackets so free-text fields
+ * cannot carry script payloads into storage or downstream rendering.
+ */
+function sanitizeFreeText(value: string): string {
+  return value
+    .replace(/<[^>]*>/g, '')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .trim()
+}
 
 function generateVerificationToken(userId: string) {
   const raw = jwt.sign({ id: userId, purpose: 'email-verify' }, process.env.JWT_SECRET!, {
     expiresIn: '24h',
   })
   const hash = crypto.createHash('sha256').update(raw).digest('hex')
-  const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000)
+  const expiry = addUtcMs(24 * 60 * 60 * 1000)
   return { raw, hash, expiry }
 }
 
@@ -61,8 +75,15 @@ export function createUserService(deps: UserServiceDeps) {
       const emailChanged = parsed.email !== undefined && parsed.email !== current.email
       const verification = emailChanged ? generateVerificationToken(userId) : null
 
-      const updated = await repo.update(userId, {
+      const sanitized = {
         ...parsed,
+        ...(parsed.firstName !== undefined ? { firstName: sanitizeFreeText(parsed.firstName) } : {}),
+        ...(parsed.lastName !== undefined ? { lastName: sanitizeFreeText(parsed.lastName) } : {}),
+        ...(parsed.bio !== undefined ? { bio: sanitizeFreeText(parsed.bio) } : {}),
+      }
+
+      const updated = await repo.update(userId, {
+        ...sanitized,
         ...(emailChanged
           ? {
               verified: false,

@@ -8,6 +8,28 @@ import type { CreateWorkerBody, UpdateWorkerBody } from '@/interfaces/index.js'
 import { invalidateCachePattern } from '@/middleware/cache.js'
 import { getWorkerReputation, syncReputationToDb } from '@/services/stellar.service.js'
 import { ErrorMessages } from '@/constants/errors.js'
+import { sanitizeObject } from '@/utils/sanitize.js'
+
+// Free-text fields on worker create/update bodies that must be sanitised
+// before they reach the service layer (defence in depth alongside the
+// sanitize middleware applied on the routes).
+const WORKER_FREE_TEXT_FIELDS = [
+  'name',
+  'bio',
+  'description',
+  'title',
+  'headline',
+  'location',
+  'city',
+  'state',
+  'country',
+  'website',
+] as const
+
+function sanitizeWorkerBody<T extends Record<string, unknown>>(body: T): T {
+  if (!body || typeof body !== 'object') return body
+  return sanitizeObject(body, [...WORKER_FREE_TEXT_FIELDS]) as T
+}
 
 // Parse a comma-separated ?fields= query param into a set for O(1) lookup.
 // An empty/absent param means "return all fields".
@@ -154,7 +176,8 @@ export async function showWorker(req: Request, res: Response) {
  * @param res - JSON `{ data: Worker, status, code: 201 }`.
  */
 export const createWorker = catchAsync(async (req: Request<{}, {}, CreateWorkerBody>, res: Response) => {
-  const worker = await workerService.createWorkerWithMedia(req.body, req.user!.id, req.file)
+  const sanitizedBody = sanitizeWorkerBody(req.body as unknown as Record<string, unknown>) as unknown as CreateWorkerBody
+  const worker = await workerService.createWorkerWithMedia(sanitizedBody, req.user!.id, req.file)
   await invalidateCachePattern(`cache:*workers?*`)
   return res.status(201).json({
     // NOTE: worker has already been through formatWorker() (narrowed category/curator
@@ -189,7 +212,8 @@ export const createWorker = catchAsync(async (req: Request<{}, {}, CreateWorkerB
  * @param res - JSON `{ data: Worker, status, code }`.
  */
 export const updateWorker = catchAsync(async (req: Request<{ id: string }, {}, UpdateWorkerBody>, res: Response) => {
-  const worker = await workerService.updateWorkerWithMedia(req.params.id, req.body, req.file, req.user?.id)
+  const sanitizedBody = sanitizeWorkerBody(req.body as unknown as Record<string, unknown>) as unknown as UpdateWorkerBody
+  const worker = await workerService.updateWorkerWithMedia(req.params.id, sanitizedBody, req.file, req.user?.id)
   await invalidateCachePattern(`cache:*workers/${req.params.id}*`)
   await invalidateCachePattern(`cache:*workers?*`)
   return res.json({

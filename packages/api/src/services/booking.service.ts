@@ -9,6 +9,7 @@ import { bookingRepository as defaultBookingRepository } from '@/repositories/bo
 import { AppError } from '@/utils/AppError.js'
 import { logger } from '@/config/logger.js'
 import { enqueueNotification } from '@/queue/index.js'
+import { nowUtc, parseUtcDate } from '@/utils/date.js'
 import type { BookingServiceDeps } from '@/container/types.js'
 import { BookingStatus } from '@bluecollar/types'
 import type { CreateBookingInput } from '@bluecollar/types'
@@ -21,8 +22,8 @@ export type { CreateBookingInput }
 
 /** Convert an ISO string to UTC Date, validating it is a real date. */
 function parseUtc(iso: string, field: string): Date {
-  const d = new Date(iso)
-  if (isNaN(d.getTime())) throw new AppError(`${field} is not a valid ISO datetime`, 400)
+  const d = parseUtcDate(iso)
+  if (!d) throw new AppError(`${field} is not a valid ISO datetime`, 400)
   return d
 }
 
@@ -51,7 +52,7 @@ export function createBookingService(deps: BookingServiceDeps) {
 
       const startTime = parseUtc(input.startTime, 'startTime')
       const endTime = parseUtc(input.endTime, 'endTime')
-      const now = new Date()
+      const now = nowUtc()
 
       if (startTime <= now) throw new AppError('startTime must be in the future', 400)
       if (endTime <= startTime) throw new AppError('endTime must be after startTime', 400)

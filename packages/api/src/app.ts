@@ -73,6 +73,10 @@ redis.connect().catch(() => {})
 applySecurity(app)
 app.use(express.json({ limit: '100kb' }))
 app.use(express.urlencoded({ extended: true, limit: '100kb' }))
+// Global sanitisation of user-supplied free text (bodies, query, params).
+// Must run before any domain router so every write path — worker bios,
+// job descriptions, review comments, dispute messages, contact requests,
+// user profiles, and direct messages — is sanitised before storage.
 app.use(sanitize)
 app.use(requestId)          // generate/propagate X-Request-ID before logging
 app.use(sanitizeParams)
@@ -105,15 +109,19 @@ function registerDomainRoutes(p: string) {
   app.use(`${p}/auth`,                         authRoutes)
   app.use(`${p}/auth`,                         devicesRoutes)       // device tokens share /auth prefix
   app.use(`${p}/categories`,                   categoryRoutes)
+  // Free-text write paths: user display name / bio (sanitised globally).
   app.use(`${p}/users`,                        userRoutes)
 
   // ── Workers domain ────────────────────────────────────────────────────────
+  // Free-text write paths: worker bio / headline / skills (sanitised globally).
   app.use(`${p}/workers`,                      workerRoutes)
   app.use(`${p}/workers`,                      insuranceRoutes)     // /workers/:id/insurance
   app.use(`${p}/workers/events`,               workerEventsRoutes)
   app.use(`${p}/workers/:workerId/portfolio`,  portfolioRoutes)
 
   // ── Jobs domain ───────────────────────────────────────────────────────────
+  // Free-text write paths: job title / description / requirements (sanitised
+  // globally). Contact-request messages are handled by the jobs router.
   app.use(`${p}/jobs`,                         jobRoutes)
   app.use(`${p}/bookings`,                     bookingsRoutes)
 
@@ -123,17 +131,21 @@ function registerDomainRoutes(p: string) {
   app.use(`${p}/escrow`,                       escrowRoutes)
 
   // ── Reviews & recommendations ─────────────────────────────────────────────
+  // Free-text write paths: review comment / title (sanitised globally).
   app.use(`${p}/reviews`,                      helpfulRoutes)
   app.use(`${p}/reviews/helpful`,              reviewsRoutes)
   app.use(`${p}/recommendations`,              recommendationRoutes)
 
   // ── Notifications & messaging ─────────────────────────────────────────────
+  // Free-text write paths: direct message body (sanitised globally).
   app.use(`${p}/notifications`,                notificationRoutes)
   app.use(`${p}/notifications/preferences`,    notificationPreferencesRoutes)
   app.use(`${p}/messages`,                     messagesRoutes)
   app.use(`${p}/subscriptions`,                subscriptionsRoutes)
 
   // ── Admin, moderation & compliance ───────────────────────────────────────
+  // Free-text write paths: dispute description / evidence notes (sanitised
+  // globally).
   app.use(`${p}/admin`,                        adminRoutes)
   app.use(`${p}/disputes`,                     disputeRoutes)
   app.use(`${p}/verifications`,                verificationRoutes)
@@ -148,7 +160,9 @@ function registerDomainRoutes(p: string) {
   app.use(p,                                   vitalsRoutes)        // /vitals (no sub-path)
 }
 
-// Register all domain routes for every supported API prefix.
+// Register all domain routes for every supported API prefix. Every free-text
+// write router (workers, jobs, reviews, disputes, contact-request via jobs,
+// users, messages) is mounted here, after the global `sanitize` middleware.
 registerDomainRoutes('/api')
 registerDomainRoutes('/api/v1')
 registerDomainRoutes('/api/v2')

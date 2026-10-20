@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client'
 import { verificationRepository as defaultVerificationRepository } from '@/repositories/verification.repository.js'
 import { AppError } from '@/utils/AppError.js'
+import { nowUtc, parseUtcDate, addUtcMs, formatUtcIso } from '@/utils/date.js'
 import { logger } from '@/config/logger.js'
 import { sendVerificationStatusEmail } from '@/mailer/index.js'
 import type { VerificationServiceDeps } from '@/container/types.js'

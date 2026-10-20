@@ -285,3 +285,7 @@ pnpm --filter app test:coverage
 
 See [packages/app/CONTRIBUTING.md](./packages/app/CONTRIBUTING.md) for translation and localization
 conventions.
+
+## Local security scan
+
+Run `scripts/security-scan.sh` before opening a PR. It runs `gitleaks` for secrets and `pnpm audit --prod` for dependency advisories. Both tools must be installed locally.

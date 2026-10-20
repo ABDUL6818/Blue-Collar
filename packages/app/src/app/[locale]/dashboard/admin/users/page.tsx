@@ -1,5 +1,6 @@
 "use client";
 
+import LoadingState from "@/components/LoadingState";
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Shield, ShieldOff, Ban, ArrowLeft } from "lucide-react";
@@ -218,9 +219,7 @@ export default function AdminUsersPage() {
       )}
 
       {loading ? (
-        <div className="flex justify-center py-12">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-        </div>
+        <LoadingState variant="list" />
       ) : users.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-3 py-20 text-gray-400">
           <p className="text-sm">No users match your filters</p>
