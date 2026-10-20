@@ -19,6 +19,7 @@
 // are configured in the workspace Cargo.toml; per-function overrides go here.
 
 pub mod errors;
+pub mod events;
 pub mod helpers;
 pub mod storage;
 pub mod versioning;
