@@ -3,6 +3,7 @@ import { jobRepository as defaultJobRepository } from '@/repositories/job.reposi
 import { AppError } from '@/utils/AppError.js'
 import { dispatchNotification } from '@/services/notification.service.js'
 import { buildPaginationMeta } from '@/utils/pagination.js'
+import { sanitizeText } from '@/utils/sanitize.js'
 import type { JobServiceDeps } from '@/container/types.js'
 
 // ── Factory ───────────────────────────────────────────────────────────────────
@@ -107,10 +108,10 @@ export function createJobService(deps: JobServiceDeps) {
       postedById: string,
     ) {
       return repo.create({
-        title: data.title,
-        description: data.description,
+        title: sanitizeText(data.title),
+        description: sanitizeText(data.description),
         budget: data.budget,
-        skills: data.skills ?? [],
+        skills: (data.skills ?? []).map((skill) => sanitizeText(skill)),
         urgency: data.urgency ?? 'normal',
         categoryId: data.categoryId,
         locationId: data.locationId,
@@ -140,7 +141,13 @@ export function createJobService(deps: JobServiceDeps) {
       if (!job) throw new AppError('Job not found', 404)
       if (job.postedById !== userId) throw new AppError('Forbidden', 403)
 
-      return repo.update(id, { ...data, expiresAt: data.expiresAt ? new Date(data.expiresAt) : undefined })
+      return repo.update(id, {
+        ...data,
+        ...(data.title !== undefined ? { title: sanitizeText(data.title) } : {}),
+        ...(data.description !== undefined ? { description: sanitizeText(data.description) } : {}),
+        ...(data.skills !== undefined ? { skills: data.skills.map((skill) => sanitizeText(skill)) } : {}),
+        expiresAt: data.expiresAt ? new Date(data.expiresAt) : undefined,
+      })
     },
 
     async deleteJob(id: string, userId: string) {
@@ -196,7 +203,12 @@ export function createJobService(deps: JobServiceDeps) {
       const existing = await repo.findApplicationByJobAndWorker(jobId, workerId)
       if (existing) throw new AppError('Already applied to this job', 409)
 
-      const application = await repo.createApplication({ jobId, workerId, coverLetter, proposedRate })
+      const application = await repo.createApplication({
+        jobId,
+        workerId,
+        coverLetter: coverLetter !== undefined ? sanitizeText(coverLetter) : undefined,
+        proposedRate,
+      })
 
       dispatchNotification({
         userId: job.postedById,

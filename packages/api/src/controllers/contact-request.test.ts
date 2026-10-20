@@ -82,6 +82,73 @@ describe('createContactRequest', () => {
 
     await expect(createContactRequest(req, res)).rejects.toMatchObject({ statusCode: 400 });
   });
+
+  it('sanitises script-tag payloads in message before storing and returning', async () => {
+    const payload = '<script>alert("xss")</script>Hello';
+    const sanitised = 'Hello';
+    const contactRequest = {
+      id: 'cr-1',
+      workerId: 'w-1',
+      fromUserId: 'u-1',
+      message: sanitised,
+    };
+    (contactRequestService.createContactRequest as any).mockResolvedValue(contactRequest);
+
+    const req = {
+      params: { id: 'w-1' },
+      user: { id: 'u-1' },
+      body: { message: payload },
+    } as any;
+    const res = makeRes();
+
+    await createContactRequest(req, res);
+
+    expect(contactRequestService.createContactRequest).toHaveBeenCalledWith(
+      'w-1',
+      'u-1',
+      sanitised,
+    );
+    const storedMessage = (contactRequestService.createContactRequest as any).mock.calls[0][2];
+    expect(storedMessage).not.toContain('<script');
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ message: sanitised }),
+        status: 'success',
+        code: 201,
+      }),
+    );
+  });
+
+  it('strips event-handler attributes from message payloads', async () => {
+    const payload = '<img src=x onerror="alert(1)">Hi';
+    const sanitised = 'Hi';
+    const contactRequest = {
+      id: 'cr-2',
+      workerId: 'w-1',
+      fromUserId: 'u-1',
+      message: sanitised,
+    };
+    (contactRequestService.createContactRequest as any).mockResolvedValue(contactRequest);
+
+    const req = {
+      params: { id: 'w-1' },
+      user: { id: 'u-1' },
+      body: { message: payload },
+    } as any;
+    const res = makeRes();
+
+    await createContactRequest(req, res);
+
+    const storedMessage = (contactRequestService.createContactRequest as any).mock.calls[0][2];
+    expect(storedMessage).not.toContain('onerror');
+    expect(storedMessage).not.toContain('<img');
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ message: sanitised }),
+      }),
+    );
+  });
 });
 
 describe('getContactRequests', () => {

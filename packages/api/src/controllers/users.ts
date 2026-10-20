@@ -8,6 +8,7 @@ import { catchAsync } from '@/utils/catchAsync.js'
 import { AppError, ErrorCode } from '@/utils/AppError.js'
 import { db } from '@/db.js'
 import { sanitizeUser } from '@/models/user.model.js'
+import { sanitizeText } from '@/utils/sanitize.js'
 import * as userService from '@/services/user.service.js'
 import { ErrorMessages, HttpStatus } from '@/constants/index.js'
 
@@ -28,10 +29,10 @@ export const updateProfile = catchAsync(async (req: Request, res: Response) => {
   const user = await db.user.update({
     where: { id: userId },
     data: {
-      ...(firstName !== undefined && { firstName }),
-      ...(lastName !== undefined && { lastName }),
+      ...(firstName !== undefined && { firstName: sanitizeText(firstName) }),
+      ...(lastName !== undefined && { lastName: sanitizeText(lastName) }),
       ...(phone !== undefined && { phone }),
-      ...(bio !== undefined && { bio }),
+      ...(bio !== undefined && { bio: sanitizeText(bio) }),
       ...(onboardingCompleted !== undefined && { onboardingCompleted }),
     },
   })

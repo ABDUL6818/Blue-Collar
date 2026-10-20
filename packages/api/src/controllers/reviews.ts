@@ -5,6 +5,7 @@ import * as reviewService from '@/services/review.service.js'
 import { AppError, ErrorCode } from '@/utils/AppError.js'
 import { catchAsync } from '@/utils/catchAsync.js'
 import { createPaginationHelper } from '@/utils/pagination.js'
+import { sanitizeText } from '@/utils/sanitize.js'
 
 // ── Worker-scoped review handlers (used by routes/workers.ts) ─────────────────
 // These live here so that routes/workers.ts does NOT need to import from
@@ -37,7 +38,8 @@ export const listWorkerReviews = async (req: Request, res: Response) => {
 export const createWorkerReview = catchAsync(async (req: Request, res: Response) => {
   const workerId = req.params.id ?? req.params.workerId
   const { rating, comment, transactionHash } = req.body
-  const review = await reviewService.createReview(workerId, req.user!.id, rating, comment, transactionHash)
+  const sanitizedComment = comment == null ? comment : sanitizeText(comment)
+  const review = await reviewService.createReview(workerId, req.user!.id, rating, sanitizedComment, transactionHash)
   return res.status(201).json({
     data: review,
     status: 'success',
@@ -74,7 +76,8 @@ export const createReview = catchAsync(async (req: Request, res: Response) => {
   const { workerId } = req.params
   const { rating, comment, transactionHash } = req.body
 
-  const review = await reviewService.createReview(workerId, req.user!.id, rating, comment, transactionHash)
+  const sanitizedComment = comment == null ? comment : sanitizeText(comment)
+  const review = await reviewService.createReview(workerId, req.user!.id, rating, sanitizedComment, transactionHash)
   res.status(201).json({ data: review, status: 'success', message: 'Review created (pending moderation)', code: 201 })
 })
 
@@ -82,7 +85,7 @@ export const flagReview = catchAsync(async (req: Request, res: Response) => {
   const { reason } = req.body
   if (!reason) throw new AppError('reason is required', 400, true, ErrorCode.VALIDATION_ERROR)
 
-  const review = await reviewService.flagReview(req.params.id, reason)
+  const review = await reviewService.flagReview(req.params.id, sanitizeText(reason))
   res.json({ data: review, status: 'success', message: 'Review flagged', code: 200 })
 })
 
@@ -164,6 +167,6 @@ export const reportReview = catchAsync(async (req: Request, res: Response) => {
   const { reason } = req.body
   if (!reason) throw new AppError('reason is required', 400, true, ErrorCode.VALIDATION_ERROR)
 
-  const review = await reviewService.flagReview(req.params.reviewId, reason)
+  const review = await reviewService.flagReview(req.params.reviewId, sanitizeText(reason))
   res.json({ data: review, status: 'success', message: 'Review reported', code: 200 })
 })

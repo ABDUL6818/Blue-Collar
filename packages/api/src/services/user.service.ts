@@ -16,8 +16,21 @@ const logger = createServiceLogger('UserService')
 const updateProfileSchema = z.object({
   firstName: z.string().min(1).max(50).optional(),
   lastName: z.string().min(1).max(50).optional(),
+  bio: z.string().max(2000).optional(),
   email: z.string().email().optional(),
 })
+
+/**
+ * Strip HTML tags and escape remaining angle brackets so free-text fields
+ * cannot carry script payloads into storage or downstream rendering.
+ */
+function sanitizeFreeText(value: string): string {
+  return value
+    .replace(/<[^>]*>/g, '')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .trim()
+}
 
 function generateVerificationToken(userId: string) {
   const raw = jwt.sign({ id: userId, purpose: 'email-verify' }, process.env.JWT_SECRET!, {
@@ -61,8 +74,15 @@ export function createUserService(deps: UserServiceDeps) {
       const emailChanged = parsed.email !== undefined && parsed.email !== current.email
       const verification = emailChanged ? generateVerificationToken(userId) : null
 
-      const updated = await repo.update(userId, {
+      const sanitized = {
         ...parsed,
+        ...(parsed.firstName !== undefined ? { firstName: sanitizeFreeText(parsed.firstName) } : {}),
+        ...(parsed.lastName !== undefined ? { lastName: sanitizeFreeText(parsed.lastName) } : {}),
+        ...(parsed.bio !== undefined ? { bio: sanitizeFreeText(parsed.bio) } : {}),
+      }
+
+      const updated = await repo.update(userId, {
+        ...sanitized,
         ...(emailChanged
           ? {
               verified: false,
