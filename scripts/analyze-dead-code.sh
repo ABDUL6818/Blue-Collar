@@ -38,10 +38,30 @@ if command -v npx &> /dev/null; then
 fi
 
 # Check for Rust dead code
+RUST_DEAD_CODE_FOUND=0
 if command -v cargo &> /dev/null; then
     echo -e "${YELLOW}📋 Running Rust dead-code analysis...${NC}"
     cd "$MODULE_PATH" 2>/dev/null || cd .
-    cargo check --all-features --message-format=json 2>/dev/null | grep -A 5 "unused" || true
+
+    # Prefer clippy with dead_code denied; fall back to cargo check if clippy is unavailable.
+    if cargo clippy --version &> /dev/null; then
+        RUST_OUTPUT=$(cargo clippy --workspace --all-targets --message-format=short -- -D dead_code 2>&1) || true
+    else
+        RUST_OUTPUT=$(cargo check --workspace --all-targets --message-format=short 2>&1) || true
+    fi
+
+    # Surface any dead-code diagnostics (clippy -D dead_code or rustc dead_code warnings).
+    DEAD_CODE_LINES=$(echo "$RUST_OUTPUT" | grep -E "dead_code|never used|never read|never constructed" || true)
+    if [ -n "$DEAD_CODE_LINES" ]; then
+        RUST_DEAD_CODE_FOUND=1
+        echo -e "${RED}❌ Rust dead-code warnings found:${NC}"
+        echo "$DEAD_CODE_LINES" | while read -r line; do
+            echo -e "  ${RED}$line${NC}"
+        done
+    else
+        echo -e "  ${GREEN}No Rust dead-code warnings.${NC}"
+    fi
+
     cd - > /dev/null 2>&1
 fi
 
@@ -60,5 +80,11 @@ find "$MODULE_PATH" -type f \( -name "*.ts" -o -name "*.rs" -o -name "*.js" \) |
         fi
     done
 done
+
+if [ "$RUST_DEAD_CODE_FOUND" -ne 0 ]; then
+    echo -e "${RED}❌ Dead-code analysis failed: unused Rust functions detected.${NC}"
+    echo -e "${YELLOW}   Remove unused private functions or document public functions kept for ABI reasons.${NC}"
+    exit 1
+fi
 
 echo -e "${GREEN}✅ Dead-code analysis complete!${NC}"

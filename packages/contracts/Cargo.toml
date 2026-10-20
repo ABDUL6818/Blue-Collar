@@ -38,6 +38,11 @@ codegen-units = 1
 
 # Lint policy for all contract crates (issue #1254).
 # Each crate opts in via `[lints] workspace = true` in its own Cargo.toml.
+[workspace.lints.rust]
+# Surface unused private functions during `cargo build`/`cargo clippy` so they
+# can be removed or documented (issue #1680).
+dead_code = "warn"
+
 [workspace.lints.clippy]
 # Enable the pedantic group as a warning (not deny) so issues surface without
 # blocking compilation. Crate authors should fix or explicitly allow each one.

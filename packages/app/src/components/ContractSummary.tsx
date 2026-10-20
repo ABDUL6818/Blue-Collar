@@ -1,6 +1,7 @@
 "use client";
 
-import type { TipDTO } from "@/types";
+import type { TipDTO } from "@bluecollar/types";
+import { TipStatus } from "@bluecollar/types";
 import { TrendingUp, Calendar, DollarSign } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
@@ -50,7 +51,7 @@ export default function ContractSummary({ tip, isLoading = false }: ContractSumm
 
           <div className="flex items-center gap-2 pt-2">
             <TrendingUp size={14} className="text-green-600" />
-            <span className="text-xs font-medium text-green-600">Confirmed</span>
+            <span className="text-xs font-medium text-green-600">{TipStatus.Confirmed}</span>
           </div>
         </div>
       </div>

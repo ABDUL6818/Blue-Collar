@@ -1,4 +1,5 @@
 import type { Job, Category, User } from '@prisma/client'
+import type { JobStatus } from '@bluecollar/types'
 import { BaseSerializer } from './base.serializer.js'
 import { categorySerializer, type SerializedCategory } from './category.serializer.js'
 import { userSerializer, type SerializedUser } from './user.serializer.js'
@@ -8,7 +9,8 @@ type JobWithRelations = Job & {
   postedBy?: User | null
 }
 
-export type SerializedJob = Job & {
+export type SerializedJob = Omit<Job, 'status'> & {
+  status: JobStatus
   category?: SerializedCategory
   postedBy?: SerializedUser
 }

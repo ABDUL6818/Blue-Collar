@@ -5,6 +5,7 @@
  */
 
 import type { Request, Response } from 'express'
+import { BookingStatus } from '@bluecollar/types'
 import { catchAsync } from '@/utils/catchAsync.js'
 import * as bookingService from '@/services/booking.service.js'
 import { AppError } from '@/utils/AppError.js'
@@ -65,7 +66,7 @@ export const getMyBookings = catchAsync(async (req: Request, res: Response) => {
   const opts = {
     page: page ? parseInt(page) : 1,
     limit: limit ? parseInt(limit) : 20,
-    status,
+    status: status as BookingStatus | undefined,
   }
 
   if (role === 'worker') {

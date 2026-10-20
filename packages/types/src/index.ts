@@ -209,7 +209,7 @@ export interface BroadcastResult {
 }
 
 export interface TxStatus {
-  status: 'pending' | 'confirmed' | 'failed';
+  status: TxStatusValue;
   resultCode?: string;
 }
 
@@ -247,11 +247,50 @@ export interface AppNotification {
   createdAt: string;
 }
 
-// ─── Jobs ─────────────────────────────────────────────────────────────────────
+// ─── Status enums (#1681) ─────────────────────────────────────────────────────
+//
+// Canonical status values. Use these const objects / union types instead of
+// raw string literals in the api and app packages.
 
-export type JobStatus = 'open' | 'closed' | 'expired' | 'filled';
-export type JobUrgency = 'low' | 'normal' | 'urgent';
-export type ApplicationStatus = 'pending' | 'accepted' | 'rejected' | 'withdrawn';
+export const JobStatus = {
+  Open: 'open',
+  Closed: 'closed',
+  Filled: 'filled',
+  Expired: 'expired',
+} as const;
+export type JobStatus = (typeof JobStatus)[keyof typeof JobStatus];
+
+export const JobUrgency = {
+  Low: 'low',
+  Normal: 'normal',
+  Urgent: 'urgent',
+} as const;
+export type JobUrgency = (typeof JobUrgency)[keyof typeof JobUrgency];
+
+export const ApplicationStatus = {
+  Pending: 'pending',
+  Accepted: 'accepted',
+  Rejected: 'rejected',
+  Withdrawn: 'withdrawn',
+} as const;
+export type ApplicationStatus = (typeof ApplicationStatus)[keyof typeof ApplicationStatus];
+
+export const BookingStatus = {
+  Pending: 'pending',
+  Confirmed: 'confirmed',
+  Cancelled: 'cancelled',
+  Completed: 'completed',
+} as const;
+export type BookingStatus = (typeof BookingStatus)[keyof typeof BookingStatus];
+
+export const TxStatusValue = {
+  Pending: 'pending',
+  Confirmed: 'confirmed',
+  Failed: 'failed',
+} as const;
+export type TxStatusValue = (typeof TxStatusValue)[keyof typeof TxStatusValue];
+
+// ─── Jobs ─────────────────────────────────────────────────────────────────────
 
 export interface Job {
   id: string;
@@ -290,6 +329,19 @@ export interface JobApplication {
     email?: string | null;
     category?: Category;
   };
+}
+
+// ─── Bookings ─────────────────────────────────────────────────────────────────
+
+export interface Booking {
+  id: string;
+  workerId: string;
+  clientId: string;
+  status: BookingStatus;
+  scheduledAt?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ─── Payments ─────────────────────────────────────────────────────────────────
@@ -364,6 +416,106 @@ export interface AuditLogEntry {
   meta?: Record<string, unknown> | null;
   createdAt: string;
   user?: { id: string; firstName: string; lastName: string; email: string } | null;
+}
+
+// ─── Shared request/response shapes (#1682) ──────────────────────────────────
+//
+// Single source of truth for request bodies and query shapes shared between
+// the api and app packages. Import these from `@bluecollar/types`.
+
+export interface LoginBody {
+  email: string;
+  password: string;
+}
+
+export interface RegisterBody {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+}
+
+export interface ForgotPasswordBody {
+  email: string;
+}
+
+export interface ResetPasswordBody {
+  token: string;
+  password: string;
+}
+
+export interface CreateWorkerBody {
+  name: string;
+  categoryId: string;
+  phone?: string;
+  email?: string;
+  bio?: string;
+  walletAddress?: string;
+  locationId?: string;
+}
+
+export type UpdateWorkerBody = Partial<CreateWorkerBody>;
+
+export interface WorkerQuery {
+  page?: number;
+  limit?: number;
+  categoryId?: string;
+  locationId?: string;
+  search?: string;
+  isVerified?: boolean;
+  isActive?: boolean;
+}
+
+export interface CreateJobBody {
+  title: string;
+  description: string;
+  budget?: number;
+  skills: string[];
+  urgency?: JobUrgency;
+  categoryId: string;
+  locationId?: string;
+  expiresAt?: string;
+}
+
+export type UpdateJobBody = Partial<CreateJobBody>;
+
+export interface JobQuery {
+  page?: number;
+  limit?: number;
+  status?: JobStatus;
+  urgency?: JobUrgency;
+  categoryId?: string;
+  locationId?: string;
+  search?: string;
+}
+
+export interface CreateJobApplicationBody {
+  coverLetter?: string;
+  proposedRate?: number;
+}
+
+export interface UpdateJobApplicationBody {
+  status: ApplicationStatus;
+}
+
+export interface CreateBookingBody {
+  workerId: string;
+  scheduledAt?: string;
+  notes?: string;
+}
+
+export interface UpdateBookingBody {
+  status?: BookingStatus;
+  scheduledAt?: string;
+  notes?: string;
+}
+
+export interface BookingQuery {
+  page?: number;
+  limit?: number;
+  status?: BookingStatus;
+  workerId?: string;
+  clientId?: string;
 }
 
 // ─── Shared Validation Schemas ────────────────────────────────────────────────

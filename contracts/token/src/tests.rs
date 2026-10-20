@@ -96,16 +96,22 @@ fn test_unauthorized_caller() {
     // Set initial balance
     TokenTransferContract::update_balance(&env, &from, &asset, 1000);
 
-    // Try to transfer without authorization
-    // The transfer function calls `from.require_auth()` which will fail if
-    // the caller is not properly authorized.
-    // In tests, we can use `env.mock_all_auths()` or `env.mock_auths()`.
-    // For this test, we'll use a different approach since require_auth
-    // cannot be directly tested without auth setup.
+    // Without mocked auths, `from.require_auth()` must reject the transfer.
+    let result = TokenTransferContract::transfer(
+        env.clone(),
+        from.clone(),
+        to,
+        500,
+        asset.clone(),
+        memo,
+    );
 
-    // Actually, for a real test, we need to set up auth properly.
-    // This test passes if we don't have auth set up.
-    // We'll test this differently.
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err(), TransferError::Unauthorized);
+
+    // Verify balance unchanged
+    let balance = TokenTransferContract::get_balance(env, from, asset);
+    assert_eq!(balance, 1000);
 }
 
 #[test]
@@ -325,4 +331,26 @@ fn test_get_balance_non_existent() {
 
     let balance = TokenTransferContract::get_balance(env, address, asset);
     assert_eq!(balance, 0);
+}
+
+#[test]
+fn test_update_balance_overwrites() {
+    let env = Env::default();
+    let address = Address::random(&env);
+    let asset = String::from_str(&env, "XLM");
+
+    TokenTransferContract::update_balance(&env, &address, &asset, 100);
+    TokenTransferContract::update_balance(&env, &address, &asset, 250);
+
+    let balance = TokenTransferContract::get_balance(env, address, asset);
+    assert_eq!(balance, 250);
+}
+
+#[test]
+fn test_get_transfers_empty() {
+    let env = Env::default();
+    let address = Address::random(&env);
+
+    let history = TokenTransferContract::get_transfers(env, address);
+    assert_eq!(history.len(), 0);
 }

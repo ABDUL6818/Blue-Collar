@@ -41,8 +41,14 @@ jobs:
           key: ${{ runner.os }}-contracts-${{ hashFiles('packages/contracts/**/Cargo.toml', 'packages/contracts/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-contracts-
 
+      # Issue #1679: enforce rustfmt across contract crates.
+      # This step must run before clippy/test so formatting failures surface first.
       - name: cargo fmt --check
         run: cargo fmt --all -- --check
+
+      # Issue #1680: fail CI on unused (dead) functions in contract crates.
+      - name: cargo clippy dead_code -D warnings
+        run: cargo clippy --workspace --all-targets -- -D dead_code -D warnings
 
       - name: cargo clippy -D warnings
         run: cargo clippy --workspace --all-targets -- -D warnings

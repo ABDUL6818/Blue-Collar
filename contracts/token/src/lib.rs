@@ -36,7 +36,11 @@ pub struct TokenTransferContract;
 
 #[contractimpl]
 impl TokenTransferContract {
-    /// Transfer tokens from one address to another
+    /// Transfer tokens from one address to another.
+    ///
+    /// Public ABI entry point: kept for on-chain invocation even if not
+    /// referenced by internal Rust code.
+    #[allow(dead_code)]
     pub fn transfer(
         env: Env,
         from: Address,
@@ -99,12 +103,20 @@ impl TokenTransferContract {
         })
     }
 
-    /// Get balance for an address
+    /// Get balance for an address.
+    ///
+    /// Public ABI entry point: kept for on-chain invocation even if not
+    /// referenced by internal Rust code.
+    #[allow(dead_code)]
     pub fn get_balance(env: Env, address: Address, asset: String) -> i128 {
         Self::get_balance(&env, &address, &asset)
     }
 
-    /// Get transfer history
+    /// Get transfer history for an address.
+    ///
+    /// Public ABI entry point: kept for on-chain invocation even if not
+    /// referenced by internal Rust code.
+    #[allow(dead_code)]
     pub fn get_transfers(env: Env, address: Address) -> Vec<TokenTransfer> {
         Self::get_transfers(&env, &address)
     }
@@ -118,16 +130,19 @@ impl TokenTransferContract {
         address.to_string().len() < 10
     }
 
+    #[allow(dead_code)]
     fn get_balance(env: &Env, address: &Address, asset: &String) -> i128 {
         let key = format!("balance_{}_{}", address.to_string(), asset.to_string());
         env.storage().get(&String::from_str(env, &key)).unwrap_or(0)
     }
 
+    #[allow(dead_code)]
     fn update_balance(env: &Env, address: &Address, asset: &String, new_balance: i128) {
         let key = format!("balance_{}_{}", address.to_string(), asset.to_string());
         env.storage().set(&String::from_str(env, &key), &new_balance);
     }
 
+    #[allow(dead_code)]
     fn store_transfer(env: &Env, transfer: TokenTransfer) -> u64 {
         let id: u64 = env.storage().get(&String::from_str(env, "transfer_count")).unwrap_or(0) + 1;
         let key = format!("transfer_{}", id);
@@ -136,6 +151,7 @@ impl TokenTransferContract {
         id
     }
 
+    #[allow(dead_code)]
     fn get_transfers(env: &Env, address: &Address) -> Vec<TokenTransfer> {
         let count: u64 = env.storage().get(&String::from_str(env, "transfer_count")).unwrap_or(0);
         let mut transfers = Vec::new(env);

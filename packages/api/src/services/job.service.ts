@@ -1,4 +1,11 @@
 import type { Prisma } from '@prisma/client'
+import { JobStatus } from '@bluecollar/types'
+import type {
+  CreateJobRequest,
+  UpdateJobRequest,
+  ListJobsQuery,
+  UpdateApplicationStatusRequest,
+} from '@bluecollar/types'
 import { jobRepository as defaultJobRepository } from '@/repositories/job.repository.js'
 import { AppError } from '@/utils/AppError.js'
 import { dispatchNotification } from '@/services/notification.service.js'
@@ -18,7 +25,7 @@ export function createJobService(deps: JobServiceDeps) {
 
     await repo.updateMany(
       { id: { in: expired.map((j) => j.id) } },
-      { status: 'expired' },
+      { status: JobStatus.Expired },
     )
 
     for (const job of expired) {
@@ -36,19 +43,9 @@ export function createJobService(deps: JobServiceDeps) {
   return {
     // ── List / Search ────────────────────────────────────────────────────────
 
-    async listJobs(opts: {
-      categoryId?: string
-      status?: string
-      search?: string
-      skills?: string[]
-      urgency?: 'low' | 'normal' | 'urgent'
-      minBudget?: number
-      maxBudget?: number
-      page?: number
-      limit?: number
-    }) {
+    async listJobs(opts: ListJobsQuery) {
       await expireJobs()
-      const { categoryId, status = 'open', search, skills, urgency, minBudget, maxBudget, page = 1, limit = 20 } = opts
+      const { categoryId, status = JobStatus.Open, search, skills, urgency, minBudget, maxBudget, page = 1, limit = 20 } = opts
 
       const where: Prisma.JobWhereInput = {
         ...(status !== 'all' ? { status: status as Prisma.JobWhereInput['status'] } : {}),
@@ -86,7 +83,7 @@ export function createJobService(deps: JobServiceDeps) {
       if (!worker) throw new AppError('Worker not found', 404)
 
       return repo.findJobs(
-        { status: 'open', categoryId: worker.categoryId },
+        { status: JobStatus.Open, categoryId: worker.categoryId },
         { skip: 0, take: limit, orderBy: [{ urgency: 'desc' }, { createdAt: 'desc' }] },
       )
     },
@@ -94,17 +91,7 @@ export function createJobService(deps: JobServiceDeps) {
     // ── CRUD ─────────────────────────────────────────────────────────────────
 
     async createJob(
-      data: {
-        title: string
-        description: string
-        budget?: number
-        skills?: string[]
-        urgency?: 'low' | 'normal' | 'urgent'
-        categoryId: string
-        locationId?: string
-        expiresAt?: string
-        escrowAmount?: number
-      },
+      data: CreateJobRequest,
       postedById: string,
     ) {
       return repo.create({
@@ -124,18 +111,7 @@ export function createJobService(deps: JobServiceDeps) {
     async updateJob(
       id: string,
       userId: string,
-      data: Partial<{
-        title: string
-        description: string
-        budget: number
-        skills: string[]
-        urgency: 'low' | 'normal' | 'urgent'
-        categoryId: string
-        locationId: string
-        status: 'open' | 'closed' | 'expired' | 'filled'
-        expiresAt: string
-        escrowAmount: number
-      }>,
+      data: UpdateJobRequest,
     ) {
       const job = await repo.findById(id)
       if (!job) throw new AppError('Job not found', 404)
@@ -163,7 +139,7 @@ export function createJobService(deps: JobServiceDeps) {
       const job = await repo.findById(id)
       if (!job) throw new AppError('Job not found', 404)
       if (job.postedById !== userId) throw new AppError('Forbidden', 403)
-      if (job.status !== 'open' && job.status !== 'expired') {
+      if (job.status !== JobStatus.Open && job.status !== JobStatus.Expired) {
         throw new AppError('Only open or expired jobs can be renewed', 400)
       }
 
@@ -197,7 +173,7 @@ export function createJobService(deps: JobServiceDeps) {
     async applyToJob(jobId: string, workerId: string, coverLetter?: string, proposedRate?: number) {
       const job = await repo.findById(jobId)
       if (!job) throw new AppError('Job not found', 404)
-      if (job.status !== 'open') throw new AppError('Job is not accepting applications', 400)
+      if (job.status !== JobStatus.Open) throw new AppError('Job is not accepting applications', 400)
 
       const existing = await repo.findApplicationByJobAndWorker(jobId, workerId)
       if (existing) throw new AppError('Already applied to this job', 409)
@@ -228,7 +204,7 @@ export function createJobService(deps: JobServiceDeps) {
       return repo.findApplicationsByJob(jobId)
     },
 
-    async updateApplicationStatus(jobId: string, applicationId: string, userId: string, status: 'accepted' | 'rejected') {
+    async updateApplicationStatus(jobId: string, applicationId: string, userId: string, status: UpdateApplicationStatusRequest['status']) {
       const job = await repo.findById(jobId)
       if (!job) throw new AppError('Job not found', 404)
       if (job.postedById !== userId) throw new AppError('Forbidden', 403)
@@ -239,7 +215,7 @@ export function createJobService(deps: JobServiceDeps) {
       const updated = await repo.updateApplication(applicationId, { status })
 
       if (status === 'accepted') {
-        await repo.update(jobId, { status: 'filled' })
+        await repo.update(jobId, { status: JobStatus.Filled })
       }
 
       // Notify the worker's curator about status change
@@ -297,17 +273,7 @@ const _defaultService = createJobService({
   jobRepository: defaultJobRepository,
 })
 
-export async function listJobs(opts: {
-  categoryId?: string
-  status?: string
-  search?: string
-  skills?: string[]
-  urgency?: 'low' | 'normal' | 'urgent'
-  minBudget?: number
-  maxBudget?: number
-  page?: number
-  limit?: number
-}) {
+export async function listJobs(opts: ListJobsQuery) {
   return _defaultService.listJobs(opts)
 }
 
@@ -320,17 +286,7 @@ export async function recommendedJobs(workerId: string, limit = 10) {
 }
 
 export async function createJob(
-  data: {
-    title: string
-    description: string
-    budget?: number
-    skills?: string[]
-    urgency?: 'low' | 'normal' | 'urgent'
-    categoryId: string
-    locationId?: string
-    expiresAt?: string
-    escrowAmount?: number
-  },
+  data: CreateJobRequest,
   postedById: string,
 ) {
   return _defaultService.createJob(data, postedById)
@@ -339,18 +295,7 @@ export async function createJob(
 export async function updateJob(
   id: string,
   userId: string,
-  data: Partial<{
-    title: string
-    description: string
-    budget: number
-    skills: string[]
-    urgency: 'low' | 'normal' | 'urgent'
-    categoryId: string
-    locationId: string
-    status: 'open' | 'closed' | 'expired' | 'filled'
-    expiresAt: string
-    escrowAmount: number
-  }>,
+  data: UpdateJobRequest,
 ) {
   return _defaultService.updateJob(id, userId, data)
 }
@@ -379,7 +324,7 @@ export async function listApplications(jobId: string, userId: string) {
   return _defaultService.listApplications(jobId, userId)
 }
 
-export async function updateApplicationStatus(jobId: string, applicationId: string, userId: string, status: 'accepted' | 'rejected') {
+export async function updateApplicationStatus(jobId: string, applicationId: string, userId: string, status: UpdateApplicationStatusRequest['status']) {
   return _defaultService.updateApplicationStatus(jobId, applicationId, userId, status)
 }
 

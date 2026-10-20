@@ -3,6 +3,15 @@
 use super::*;
 use soroban_sdk::{testutils::Address as _, Address, Env, String};
 
+/// All statuses the registry can hold, used to assert the shared enum is
+/// exhaustively covered by the state machine tests.
+const ALL_STATUSES: [JobStatus; 4] = [
+    JobStatus::Open,
+    JobStatus::Assigned,
+    JobStatus::Completed,
+    JobStatus::Closed,
+];
+
 fn setup() -> (Env, JobRegistryClient<'static>, Address, Address) {
     let env = Env::default();
     env.mock_all_auths();
@@ -29,6 +38,17 @@ fn test_create_job_starts_open() {
     let job_id = create_job(&env, &client, &client_admin);
     let job = client.get_job(&job_id);
     assert_eq!(job.status, JobStatus::Open);
+}
+
+#[test]
+fn test_status_enum_covers_all_states() {
+    // Guards against the shared status enum drifting from the state machine:
+    // every variant must be reachable and distinct.
+    for (i, status) in ALL_STATUSES.iter().enumerate() {
+        for other in ALL_STATUSES.iter().skip(i + 1) {
+            assert_ne!(status, other, "status variants must be distinct");
+        }
+    }
 }
 
 #[test]
@@ -134,6 +154,7 @@ fn fuzz_job_registry_state_transitions() {
     for _ in 0..64 {
         let job_id = create_job(&env, &client, &client_admin);
         let mut expected = JobStatus::Open;
+        assert!(ALL_STATUSES.contains(&expected));
 
         for _ in 0..32 {
             let action = rng.below(4);
@@ -177,8 +198,11 @@ fn fuzz_job_registry_state_transitions() {
                 }
             }
 
-            // Invariant: the on-chain status always matches the modelled state.
-            assert_eq!(client.get_job(&job_id).status, expected);
+            // Invariant: the on-chain status always matches the modelled state
+            // and is always one of the shared enum variants.
+            let observed = client.get_job(&job_id).status;
+            assert!(ALL_STATUSES.contains(&observed));
+            assert_eq!(observed, expected);
         }
     }
 }

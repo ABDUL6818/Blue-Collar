@@ -14,7 +14,7 @@ export const createJobSchema = z.object({
 })
 
 export const updateJobSchema = createJobSchema.partial().extend({
-  status: z.enum(['open', 'closed']).optional(),
+  status: z.enum(JOB_STATUSES).optional(),
 })
 
 export const applyToJobSchema = z.object({
@@ -24,7 +24,7 @@ export const applyToJobSchema = z.object({
 })
 
 export const updateApplicationStatusSchema = z.object({
-  status: z.enum(['accepted', 'rejected']),
+  status: z.enum(JOB_APPLICATION_STATUSES),
 })
 
 export const sendMessageSchema = z.object({
@@ -34,18 +34,18 @@ export const sendMessageSchema = z.object({
 
 export const listJobsQuerySchema = z.object({
   categoryId: z.string().max(40).regex(/^[a-z0-9_-]+$/i, 'Invalid category id').optional(),
-  status: z.enum(['open', 'closed', 'filled', 'expired']).optional(),
+  status: z.enum(JOB_STATUSES).optional(),
   /**
    * Issue #1236 — bound free-text search param to 200 chars; rejects anything
    * longer to prevent expensive FTS query plans from adversarial inputs.
    */
   search: z.string().max(200).optional(),
   skills: z.string().max(500).optional(),          // comma-separated, bounded
-  urgency: z.enum(['low', 'normal', 'urgent']).optional(),
+  urgency: z.enum(JOB_URGENCY_LEVELS).optional(),
   minBudget: z.coerce.number().min(0).optional(),
   maxBudget: z.coerce.number().min(0).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 })
 
-export type ListJobsQuery = z.infer<typeof listJobsQuerySchema>
+export type { ListJobsQuery }

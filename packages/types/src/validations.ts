@@ -18,6 +18,36 @@
  * ```
  */
 import { z } from 'zod'
+import {
+  ApplicationStatus,
+  BookingStatus,
+  JobStatus,
+  JobUrgency,
+} from './status'
+
+// ── Status enums (derived from shared constants) ─────────────────────────────
+// Built from the `@bluecollar/types` status constants so validation rules and
+// TypeScript types can never drift apart (issue #1681).
+
+/** Valid job status values. */
+export const jobStatusSchema = z.enum(
+  Object.values(JobStatus) as [JobStatus, ...JobStatus[]],
+)
+
+/** Valid booking status values. */
+export const bookingStatusSchema = z.enum(
+  Object.values(BookingStatus) as [BookingStatus, ...BookingStatus[]],
+)
+
+/** Valid job application status values. */
+export const applicationStatusSchema = z.enum(
+  Object.values(ApplicationStatus) as [ApplicationStatus, ...ApplicationStatus[]],
+)
+
+/** Valid job urgency values. */
+export const jobUrgencySchema = z.enum(
+  Object.values(JobUrgency) as [JobUrgency, ...JobUrgency[]],
+)
 
 // ── Primitive field schemas ───────────────────────────────────────────────────
 

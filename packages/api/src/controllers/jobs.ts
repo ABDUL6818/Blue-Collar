@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express'
+import { JobStatus } from '@bluecollar/types'
 import { catchAsync } from '@/utils/catchAsync.js'
 import { AppError, ErrorCode } from '@/utils/AppError.js'
 import { ErrorMessages } from '@/constants/errors.js'
@@ -46,12 +47,12 @@ export function createJobsController(service: JobsService = jobService) {
         page: parsedPage,
         limit: parsedLimit,
       })
-      return res.json({ ...result, status: 'success', code: 200 })
+      return res.json({ ...result, status: JobStatus.SUCCESS, code: 200 })
     }),
 
     showJob: catchAsync(async (req: Request, res: Response) => {
       const job = await service.getJob(req.params.id)
-      return res.json({ data: job, status: 'success', code: 200 })
+      return res.json({ data: job, status: JobStatus.SUCCESS, code: 200 })
     }),
 
     createJob: catchAsync(async (req: Request, res: Response) => {
@@ -78,13 +79,13 @@ export function createJobsController(service: JobsService = jobService) {
     renewJob: catchAsync(async (req: Request, res: Response) => {
       const days = req.body.days ? Number(req.body.days) : 30
       const job = await service.renewJob(req.params.id, req.user!.id, days)
-      return res.json({ data: job, status: 'success', code: 200 })
+      return res.json({ data: job, status: JobStatus.SUCCESS, code: 200 })
     }),
 
     // ── Recommendations ─────────────────────────────────────────────────────────
     recommendedJobs: catchAsync(async (req: Request, res: Response) => {
       const jobs = await service.recommendedJobs(req.params.workerId)
-      return res.json({ data: jobs, status: 'success', code: 200 })
+      return res.json({ data: jobs, status: JobStatus.SUCCESS, code: 200 })
     }),
 
     // ── My jobs / applications ──────────────────────────────────────────────────
@@ -92,7 +93,7 @@ export function createJobsController(service: JobsService = jobService) {
       const { page, limit } = req.query as Record<string, string | undefined>
       const parsed = parsePaginationParams({ page, limit })
       const result = await service.myPostedJobs(req.user!.id, parsed.page, parsed.limit)
-      return res.json({ ...result, status: 'success', code: 200 })
+      return res.json({ ...result, status: JobStatus.SUCCESS, code: 200 })
     }),
 
     myApplications: catchAsync(async (req: Request, res: Response) => {
@@ -103,7 +104,7 @@ export function createJobsController(service: JobsService = jobService) {
       }
       const parsed = parsePaginationParams({ page, limit })
       const result = await service.myApplications(String(workerId), parsed.page, parsed.limit)
-      return res.json({ ...result, status: 'success', code: 200 })
+      return res.json({ ...result, status: JobStatus.SUCCESS, code: 200 })
     }),
 
     // ── Applications ─────────────────────────────────────────────────────────────
@@ -116,7 +117,7 @@ export function createJobsController(service: JobsService = jobService) {
 
     listApplications: catchAsync(async (req: Request, res: Response) => {
       const applications = await service.listApplications(req.params.id, req.user!.id)
-      return res.json({ data: applications, status: 'success', code: 200 })
+      return res.json({ data: applications, status: JobStatus.SUCCESS, code: 200 })
     }),
 
     updateApplicationStatus: catchAsync(async (req: Request, res: Response) => {
@@ -126,7 +127,7 @@ export function createJobsController(service: JobsService = jobService) {
         req.user!.id,
         req.body.status,
       )
-      return res.json({ data: application, status: 'success', code: 200 })
+      return res.json({ data: application, status: JobStatus.SUCCESS, code: 200 })
     }),
 
     withdrawApplication: catchAsync(async (req: Request, res: Response) => {
@@ -135,7 +136,7 @@ export function createJobsController(service: JobsService = jobService) {
         throw new AppError(ErrorMessages.WORKER_ID_REQUIRED, 400, true, ErrorCode.VALIDATION_ERROR)
       }
       const application = await service.withdrawApplication(req.params.id, String(workerId))
-      return res.json({ data: application, status: 'success', code: 200 })
+      return res.json({ data: application, status: JobStatus.SUCCESS, code: 200 })
     }),
 
     // ── Messaging ────────────────────────────────────────────────────────────────
@@ -148,7 +149,7 @@ export function createJobsController(service: JobsService = jobService) {
 
     listMessages: catchAsync(async (req: Request, res: Response) => {
       const messages = await service.listMessages(req.params.id, req.user!.id)
-      return res.json({ data: messages, status: 'success', code: 200 })
+      return res.json({ data: messages, status: JobStatus.SUCCESS, code: 200 })
     }),
   }
 }
