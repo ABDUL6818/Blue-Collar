@@ -1,4 +1,5 @@
 import { AppError, ErrorCode } from '@/utils/AppError.js'
+import { nowUtc } from '@/utils/date.js'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -97,7 +98,7 @@ export function tip({ from, to, amount }: TipParams): TipResult {
 }
 
 export function createEscrow({ from, to, amount, expiryDate }: EscrowParams): EscrowResult {
-  if (expiryDate <= new Date()) {
+  if (expiryDate <= nowUtc()) {
     throw new AppError('Escrow expiry must be in the future', 400, true, ErrorCode.VALIDATION_ERROR)
   }
   if (amount <= 0) {
@@ -108,7 +109,7 @@ export function createEscrow({ from, to, amount, expiryDate }: EscrowParams): Es
 
 export function createMultiSigEscrow(params: MultiSigEscrowParams): MultiSigEscrowResult {
   const { from, to, amount, expiryDate, signers, threshold } = params
-  if (expiryDate <= new Date()) {
+  if (expiryDate <= nowUtc()) {
     throw new AppError('Escrow expiry must be in the future', 400, true, ErrorCode.VALIDATION_ERROR)
   }
   if (amount <= 0) {
@@ -184,7 +185,7 @@ export class PaymentService {
    */
   createEscrow(params: EscrowParams): EscrowResult {
     const { from, to, amount, expiryDate } = params
-    if (expiryDate <= new Date()) {
+    if (expiryDate <= nowUtc()) {
       throw new AppError('Escrow expiry must be in the future', 400, true, ErrorCode.VALIDATION_ERROR)
     }
     if (amount <= 0) {

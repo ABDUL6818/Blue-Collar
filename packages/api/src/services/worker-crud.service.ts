@@ -54,7 +54,7 @@ export async function updateWorker(id: string, data: UpdateWorkerBody, updatedBy
 
 export async function deleteWorker(id: string) {
   logger.debug('Deleting worker', { workerId: id })
-  await db.worker.update({ where: { id }, data: { deletedAt: new Date() } })
+  await db.worker.update({ where: { id }, data: { deletedAt: nowUtc() } })
   publishEvent('worker.deleted', { workerId: id }).catch(() => {})
   appEvents.emit('worker.deleted', { workerId: id })
   logger.info('Worker deleted successfully', { workerId: id })

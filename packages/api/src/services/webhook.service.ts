@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 import { db as defaultDb } from '@/db.js'
 import { logger } from '@/config/logger.js'
 import { getErrorMessage } from '@/utils/getErrorMessage.js'
+import { nowUtc } from '@/utils/date.js'
 import type { PrismaClient } from '@prisma/client'
 
 interface WebhookServiceDeps {
@@ -87,7 +88,7 @@ export class WebhookService {
     attempt = 0,
   ): Promise<void> {
     const body = JSON.stringify(payload)
-    const timestamp = Math.floor(Date.now() / 1000).toString()
+    const timestamp = Math.floor(nowUtc().getTime() / 1000).toString()
     const signature = this.sign(secret, `${timestamp}.${body}`)
 
     try {

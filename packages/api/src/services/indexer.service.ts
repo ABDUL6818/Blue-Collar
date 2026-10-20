@@ -1,5 +1,6 @@
 import { db } from '@/db.js'
 import { AppError } from '@/utils/AppError.js'
+import { nowUtc, addUtcMs } from '@/utils/date.js'
 import { Gauge, Counter, Histogram } from 'prom-client'
 
 // ── Prometheus metrics ────────────────────────────────────────────────────────
@@ -50,7 +51,7 @@ export async function ingestContractEvent(event: ContractEventData) {
       },
     },
     update: {
-      processedAt: new Date(),
+      processedAt: nowUtc(),
     },
     create: {
       contractId: event.contractId,
@@ -104,7 +105,7 @@ export async function updateCursor(
       data: {
         ledger,
         txIndex,
-        updatedAt: new Date(),
+        updatedAt: nowUtc(),
       },
     })
   }
@@ -183,8 +184,7 @@ export async function reconcileEvents(contractId: string) {
  * Keeps events for the last N days (default: 90 days).
  */
 export async function cleanupOldEvents(contractId: string, retentionDays = 90) {
-  const cutoffDate = new Date()
-  cutoffDate.setDate(cutoffDate.getDate() - retentionDays)
+  const cutoffDate = addUtcMs(nowUtc(), -retentionDays * 24 * 60 * 60 * 1000)
 
   return db.contractEvent.deleteMany({
     where: {

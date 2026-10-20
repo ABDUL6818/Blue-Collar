@@ -1,4 +1,5 @@
 import { db } from '@/db.js'
+import { nowUtc, addUtcMs, formatUtcIso } from '@/utils/date.js'
 
 interface ProtocolMetrics {
   timestamp: Date
@@ -31,7 +32,7 @@ export async function getProtocolMetrics(): Promise<ProtocolMetrics> {
   ])
 
   return {
-    timestamp: new Date(),
+    timestamp: nowUtc(),
     totalRegistrations,
     activeWorkers,
     totalTipVolume: tipAgg._sum.totalTips ?? 0,
@@ -40,7 +41,7 @@ export async function getProtocolMetrics(): Promise<ProtocolMetrics> {
     activeEscrows: 0, // Placeholder for on-chain data
     totalDisputes: disputes,
     resolvedDisputes,
-    dataFreshness: new Date(),
+    dataFreshness: nowUtc(),
   }
 }
 
@@ -48,12 +49,11 @@ export async function getProtocolMetricsTimeSeries(days = 30) {
   const metrics: Array<{ date: string; registrations: number; tips: number; disputes: number }> = []
   
   for (let i = days - 1; i >= 0; i--) {
-    const start = new Date()
-    start.setDate(start.getDate() - i)
+    const start = nowUtc()
+    start.setUTCDate(start.getUTCDate() - i)
     start.setUTCHours(0, 0, 0, 0)
-    
-    const end = new Date(start)
-    end.setDate(end.getDate() + 1)
+
+    const end = addUtcMs(start, 24 * 60 * 60 * 1000)
 
     const [registrations, tips, disputes] = await Promise.all([
       db.worker.count({ where: { createdAt: { gte: start, lt: end } } }),
@@ -65,7 +65,7 @@ export async function getProtocolMetricsTimeSeries(days = 30) {
     ])
 
     metrics.push({
-      date: start.toISOString().split('T')[0],
+      date: formatUtcIso(start).split('T')[0],
       registrations,
       tips: tips._sum.totalTips ?? 0,
       disputes,

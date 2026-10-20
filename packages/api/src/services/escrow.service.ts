@@ -6,6 +6,7 @@ import { escrowRepository as defaultEscrowRepository } from '@/repositories/escr
 import { AppError, ErrorCode } from '@/utils/AppError.js'
 import { dispatchNotification } from './notification.service.js'
 import { db } from '@/db.js'
+import { nowUtc } from '@/utils/date.js'
 import type { EscrowServiceDeps } from '@/container/types.js'
 
 // ── Pause guard ───────────────────────────────────────────────────────────────
@@ -59,7 +60,7 @@ export function createEscrowService(deps: EscrowServiceDeps) {
     }) {
       await requireNotPaused()
       if (data.amountXlm <= 0) throw new AppError('amountXlm must be greater than 0', 400, true, ErrorCode.VALIDATION_ERROR)
-      if (data.expiresAt <= new Date()) throw new AppError('expiresAt must be in the future', 400, true, ErrorCode.VALIDATION_ERROR)
+      if (data.expiresAt <= nowUtc()) throw new AppError('expiresAt must be in the future', 400, true, ErrorCode.VALIDATION_ERROR)
       if (data.payerId === data.payeeId) throw new AppError('Payer and payee must be different', 400, true, ErrorCode.VALIDATION_ERROR)
 
       const record = await repo.createEscrow({ ...data, status: 'pending' })
@@ -94,7 +95,7 @@ export function createEscrowService(deps: EscrowServiceDeps) {
       if (record.status !== 'active') throw new AppError('Only active escrows can be released', 400, true, ErrorCode.VALIDATION_ERROR)
       if (callerRole !== 'admin' && record.payerId !== callerId) throw new AppError('Forbidden', 403, true, ErrorCode.FORBIDDEN)
 
-      const updated = await repo.updateEscrow(id, { status: 'released', releasedAt: new Date() })
+      const updated = await repo.updateEscrow(id, { status: 'released', releasedAt: nowUtc() })
 
       notifyBoth(record.payerId, record.payeeId, 'Escrow released', `Escrow ${id} has been released. Funds are on their way to the payee.`, `/escrow/${id}`)
 
@@ -110,7 +111,7 @@ export function createEscrowService(deps: EscrowServiceDeps) {
       if (record.status !== 'active' && record.status !== 'pending') {
         throw new AppError('Only pending/active escrows can be cancelled', 400, true, ErrorCode.VALIDATION_ERROR)
       }
-      const now = new Date()
+      const now = nowUtc()
       if (callerRole !== 'admin' && record.payerId !== callerId) throw new AppError('Forbidden', 403, true, ErrorCode.FORBIDDEN)
       if (callerRole !== 'admin' && record.expiresAt > now) {
         throw new AppError('Escrow is still within the lock period', 400, true, ErrorCode.VALIDATION_ERROR)
@@ -183,15 +184,15 @@ export function createEscrowService(deps: EscrowServiceDeps) {
       const updated = await repo.updateDispute(disputeId, {
         status,
         resolution,
-        resolvedAt: status !== 'under_review' ? new Date() : undefined,
+        resolvedAt: status !== 'under_review' ? nowUtc() : undefined,
       })
 
       if (status === 'resolved' || status === 'dismissed') {
         const escrowStatus = status === 'resolved' ? 'released' : 'cancelled'
         await repo.updateEscrow(dispute.escrowId, {
           status: escrowStatus,
-          releasedAt: escrowStatus === 'released' ? new Date() : undefined,
-          cancelledAt: escrowStatus === 'cancelled' ? new Date() : undefined,
+          releasedAt: escrowStatus === 'released' ? nowUtc() : undefined,
+          cancelledAt: escrowStatus === 'cancelled' ? nowUtc() : undefined,
         })
 
         notifyBoth(
@@ -292,7 +293,7 @@ export async function resolveDispute(
     where: { id: escrowId },
     data: {
       status: newStatus,
-      ...(newStatus === 'released' ? { releasedAt: new Date() } : { cancelledAt: new Date() }),
+      ...(newStatus === 'released' ? { releasedAt: nowUtc() } : { cancelledAt: nowUtc() }),
     },
   })
 

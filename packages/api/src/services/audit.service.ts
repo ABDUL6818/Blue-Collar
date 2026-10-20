@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client'
 import { db } from '@/db.js'
 import { logger } from '@/config/logger.js'
+import { nowUtc, parseUtcDate } from '@/utils/date.js'
 
 export interface AuditOptions {
   userId?: string
@@ -13,7 +14,7 @@ export interface AuditOptions {
 /** Write an audit log entry (fire-and-forget safe) */
 export async function log(opts: AuditOptions) {
   try {
-    await db.auditLog.create({ data: opts })
+    await db.auditLog.create({ data: { ...opts, createdAt: nowUtc() } })
   } catch (err) {
     logger.error({ err }, 'Failed to write audit log')
   }
@@ -29,7 +30,9 @@ export async function queryLogs(opts: {
   page?: number
   limit?: number
 }) {
-  const { userId, action, resource, from, to, page = 1, limit = 50 } = opts
+  const { userId, action, resource, page = 1, limit = 50 } = opts
+  const from = parseUtcDate(opts.from)
+  const to = parseUtcDate(opts.to)
 
   const where: Prisma.AuditLogWhereInput = {
     ...(userId ? { userId } : {}),

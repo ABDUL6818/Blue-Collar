@@ -58,7 +58,8 @@ export function createMessagingService(deps: MessagingServiceDeps) {
       return conversations.reduce((count: number, conv) => {
         const lastReadAt = conv.participants[0]?.lastReadAt
         if (!lastReadAt) return count + conv.messages.length
-        return count + conv.messages.filter((m) => m.createdAt > lastReadAt).length
+        const lastReadAtDate = parseUtcDate(lastReadAt)
+        return count + conv.messages.filter((m) => parseUtcDate(m.createdAt) > lastReadAtDate).length
       }, 0)
     },
   }

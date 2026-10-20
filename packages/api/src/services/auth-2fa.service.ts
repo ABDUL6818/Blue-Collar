@@ -2,6 +2,7 @@ import * as OTPAuth from 'otpauth'
 import crypto from 'node:crypto'
 import { AppError } from '@/utils/AppError.js'
 import { userRepository as defaultUserRepository } from '@/repositories/user.repository.js'
+import { nowUtc, parseUtcDate, addUtcMs, formatUtcIso } from '@/utils/date.js'
 
 /**
  * Generate a new TOTP secret and QR code URL for 2FA enrollment.

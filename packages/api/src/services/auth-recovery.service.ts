@@ -4,6 +4,7 @@ import crypto from 'node:crypto'
 import { AppError } from '@/utils/AppError.js'
 import { sanitizeUser } from '@/models/user.model.js'
 import { createServiceLogger } from '@/utils/logger.js'
+import { nowUtc, addUtcMs } from '@/utils/date.js'
 import type { RegisterBody } from '@/interfaces/index.js'
 import type { AuthServiceDeps } from '@/container/types.js'
 
@@ -17,7 +18,7 @@ export function generateVerificationToken(userId: string) {
     expiresIn: '24h',
   })
   const hash = crypto.createHash('sha256').update(raw).digest('hex')
-  const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000)
+  const expiry = addUtcMs(nowUtc(), 24 * 60 * 60 * 1000)
   return { raw, hash, expiry }
 }
 
@@ -75,7 +76,7 @@ export function createAuthRecoveryService(deps: Pick<AuthServiceDeps, 'userRepos
       const valid =
         incomingHash === user.verificationToken &&
         user.verificationTokenExpiry &&
-        user.verificationTokenExpiry > new Date()
+        user.verificationTokenExpiry > nowUtc()
 
       if (!valid) throw new AppError('Token is invalid or has expired', 400)
 
@@ -108,7 +109,7 @@ export function createAuthRecoveryService(deps: Pick<AuthServiceDeps, 'userRepos
 
       const rawToken = crypto.randomBytes(32).toString('hex')
       const hash = crypto.createHash('sha256').update(rawToken).digest('hex')
-      const expiry = new Date(Date.now() + 60 * 60 * 1000)
+      const expiry = addUtcMs(nowUtc(), 60 * 60 * 1000)
 
       await userRepository.update(user.id, { resetToken: hash, resetTokenExpiry: expiry })
 
@@ -127,14 +128,16 @@ export function createAuthRecoveryService(deps: Pick<AuthServiceDeps, 'userRepos
 
       const hashedPassword = await argon2.hash(password)
 
+      const revokedAt = nowUtc()
+
       await db.refreshToken.updateMany({
         where: { userId: user.id, revokedAt: null },
-        data: { revokedAt: new Date() },
+        data: { revokedAt },
       })
 
       await db.device.updateMany({
         where: { userId: user.id, revokedAt: null },
-        data: { revokedAt: new Date() },
+        data: { revokedAt },
       })
 
       await userRepository.update(user.id, { password: hashedPassword, resetToken: null, resetTokenExpiry: null })

@@ -3,6 +3,7 @@ import { db } from '@/db.js'
 import { formatWorker } from '@/models/worker.model.js'
 import { workerRepository } from '@/repositories/worker.repository.js'
 import { WorkerCollection } from '@/resources/index.js'
+import { addUtcMs, nowUtc } from '@/utils/date.js'
 
 const workerInclude = { category: true, curator: true } as const
 
@@ -79,7 +80,7 @@ export async function listWorkers(opts: {
       : {}),
     ...(available !== undefined ? { availability: { some: { dayOfWeek: available } } } : {}),
     ...(listedSince !== undefined
-      ? { createdAt: { gte: new Date(Date.now() - listedSince * 365 * 24 * 60 * 60 * 1000) } }
+      ? { createdAt: { gte: addUtcMs(nowUtc(), -listedSince * 365 * 24 * 60 * 60 * 1000) } }
       : {}),
   }
 
@@ -167,7 +168,7 @@ export async function listWorkersCursor(opts: {
       : {}),
     ...(available !== undefined ? { availability: { some: { dayOfWeek: available } } } : {}),
     ...(listedSince !== undefined
-      ? { createdAt: { gte: new Date(Date.now() - listedSince * 365 * 24 * 60 * 60 * 1000) } }
+      ? { createdAt: { gte: addUtcMs(nowUtc(), -listedSince * 365 * 24 * 60 * 60 * 1000) } }
       : {}),
     ...(search ? { name: { contains: search, mode: 'insensitive' as const } } : {}),
   }
@@ -295,7 +296,7 @@ async function listWorkersFullText(opts: FtsOpts) {
   }
   if (listedSince !== undefined) {
     extraClauses.push('w."createdAt" >= ' + p(ci++))
-    extraParams.push(new Date(Date.now() - listedSince * 365 * 24 * 60 * 60 * 1000))
+    extraParams.push(addUtcMs(nowUtc(), -listedSince * 365 * 24 * 60 * 60 * 1000))
   }
   if (minRating !== undefined) {
     extraClauses.push(
