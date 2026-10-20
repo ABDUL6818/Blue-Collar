@@ -121,3 +121,33 @@ println!("[BENCH] op  cpu={} instructions  mem={} bytes", cpu, mem);
 - **CPU instructions** map to Soroban's metered instruction count. On mainnet, each transaction has a CPU limit of ~100,000,000 instructions. A single operation consuming >10,000,000 instructions is expensive and warrants review.
 - **Memory bytes** map to Soroban's heap allocation tracking. The limit per transaction is ~41,943,040 bytes. Most contract operations should be well under 1,000,000 bytes.
 - Neither number maps directly to XLM fee cost â€” the actual fee also depends on ledger entry reads/writes and WASM execution size. Use the Stellar Lab fee estimator or `stellar contract invoke --fee-limit` for production fee estimates.
+
+---
+
+## WASM Binary Size (issue #1651)
+
+Recorded after auditing `contracts/types/src/helpers.rs` for unused public helpers (issue #1651).
+
+**Audit result:** All seven helpers (`require_role`, `require_not_paused`, `require_admin`,
+`require_party`, `require_owner_or_role`, `split_fee`, `bps_share`) are actively called by at least
+one contract. No helpers were removed.
+
+| Contract WASM | Size (bytes) | Notes |
+|---|---|---|
+| `bluecollar_registry.wasm` | — | Measure with `wc -c` after `cargo build --release --target wasm32v1-none` |
+| `bluecollar_market.wasm` | — | |
+| `bluecollar_dispute.wasm` | — | |
+| `bluecollar_fee_distribution.wasm` | — | |
+| `bluecollar_insurance_pool.wasm` | — | |
+| `bluecollar_payment.wasm` | — | |
+| `bluecollar_escrow.wasm` | — | |
+| `bluecollar_job_registry.wasm` | — | |
+| `bluecollar_reputation.wasm` | — | |
+
+> To populate the table run:
+> ```bash
+> cd packages/contracts
+> cargo build --release --target wasm32v1-none
+> for f in target/wasm32v1-none/release/*.wasm; do echo "$f: $(wc -c < "$f") bytes"; done
+> ```
+> Update the table after any change to the `types` crate helpers.
