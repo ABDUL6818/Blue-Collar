@@ -4,7 +4,7 @@ import { useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X, Loader2, CheckCircle2, MessageSquare } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useSendContactRequest } from "@/hooks/queries";
+import { useContactForm } from "@/hooks/useContactForm";
 
 interface Props {
   workerId: string;
@@ -14,39 +14,14 @@ interface Props {
 export default function ContactModal({ workerId, workerName }: Props) {
   const t = useTranslations("contact");
   const [open, setOpen] = useState(false);
-  const [message, setMessage] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [error, setError] = useState<string | null>(null);
-  const sendContactRequest = useSendContactRequest(workerId);
-
-  const reset = () => {
-    setMessage("");
-    setStatus("idle");
-    setError(null);
-  };
+  const { message, setMessage, status, error, setError, reset, handleSubmit } = useContactForm(
+    workerId,
+    (key) => t(key as never),
+  );
 
   const handleOpenChange = (val: boolean) => {
     setOpen(val);
     if (!val) reset();
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = message.trim();
-    if (!trimmed) return setError(t("errorEmpty"));
-    if (trimmed.length < 10) return setError(t("errorTooShort"));
-    if (trimmed.length > 1000) return setError(t("errorTooLong"));
-
-    setStatus("loading");
-    setError(null);
-    try {
-      await sendContactRequest.mutateAsync(trimmed);
-      setStatus("success");
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t("errorGeneric");
-      setError(msg.includes("429") ? t("errorRateLimit") : msg);
-      setStatus("error");
-    }
   };
 
   return (

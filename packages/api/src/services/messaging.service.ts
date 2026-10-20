@@ -1,6 +1,6 @@
 import { messagingRepository as defaultMessagingRepository } from '@/repositories/messaging.repository.js'
 import { AppError, ErrorCode } from '@/utils/AppError.js'
-import { nowUtc, parseUtcDate } from '@/utils/date.js'
+import { sanitizeText } from '@/utils/sanitize.js'
 import type { MessagingServiceDeps } from '@/container/types.js'
 
 // ── Factory ───────────────────────────────────────────────────────────────────
@@ -11,7 +11,7 @@ export function createMessagingService(deps: MessagingServiceDeps) {
   return {
     async createConversation(participantIds: string[], subject?: string) {
       return repo.createConversation({
-        subject,
+        subject: subject === undefined ? undefined : sanitizeText(subject),
         participants: {
           create: participantIds.map(id => ({ userId: id })),
         },
@@ -37,7 +37,7 @@ export function createMessagingService(deps: MessagingServiceDeps) {
       const conversation = await repo.findConversation(conversationId, userId)
       if (!conversation) throw new AppError('Conversation not found', 404, true, ErrorCode.NOT_FOUND)
 
-      return repo.searchMessages(conversationId, query)
+      return repo.searchMessages(conversationId, sanitizeText(query))
     },
 
     async deleteMessage(messageId: string, userId: string) {

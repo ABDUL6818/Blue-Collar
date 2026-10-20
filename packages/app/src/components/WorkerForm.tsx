@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, CheckCircle2 } from "lucide-react";
 import FormField from "@/components/Form/FormField";
-import ImageUpload from "@/components/ImageUpload";
+import { FileUpload } from "@/components/Form/FileUpload";
 import { cn } from "@/lib/utils";
 import { getCategories } from "@/lib/api";
 import type { Category } from "@/types";
@@ -152,13 +152,12 @@ export default function WorkerForm({
       noValidate
     >
       {/* Profile image — issue #271 */}
-      <div>
-        <p className="mb-2 text-sm font-medium text-gray-700">Profile Image</p>
-        <ImageUpload
-          existingUrl={existingAvatar}
-          onChange={(file) => setImageFile(file)}
-        />
-      </div>
+      <FileUpload
+        label="Profile Image"
+        mode="image"
+        existingUrl={existingAvatar}
+        onChange={(files) => setImageFile(files?.[0] ?? null)}
+      />
 
       {/* Name */}
       <FormField

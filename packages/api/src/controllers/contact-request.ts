@@ -2,16 +2,21 @@ import type { Request, Response } from 'express'
 import * as contactRequestService from '@/services/contact-request.service.js'
 import { catchAsync } from '@/utils/catchAsync.js'
 import { AppError, ErrorCode } from '@/utils/AppError.js'
+import { sanitizeText } from '@/utils/sanitize.js'
 
 export const createContactRequest = catchAsync(async (req: Request, res: Response) => {
   const { message } = req.body
   if (!message) {
     throw new AppError('message is required', 400, true, ErrorCode.VALIDATION_ERROR)
   }
+  const sanitizedMessage = sanitizeText(message)
+  if (!sanitizedMessage) {
+    throw new AppError('message is required', 400, true, ErrorCode.VALIDATION_ERROR)
+  }
   const contactRequest = await contactRequestService.createContactRequest(
     req.params.id,
     req.user!.id,
-    message
+    sanitizedMessage
   )
   return res.status(201).json({
     data: contactRequest,

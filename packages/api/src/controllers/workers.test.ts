@@ -39,6 +39,7 @@ vi.mock('../middleware/cache.js', () => ({
 
 import * as workerService from '../services/worker.service.js'
 import { AppError } from '../utils/AppError.js'
+import { sanitizeString } from '../utils/sanitize.js'
 import {
   listWorkers,
   showWorker,
@@ -234,5 +235,50 @@ describe('listMyWorkers', () => {
     const res = makeRes()
     await listMyWorkers(req, res)
     expect(workerService.listMyWorkers).toHaveBeenCalledWith('c1', 1, 20)
+  })
+})
+
+// ── free-text sanitisation (issue #1685) ──────────────────────────────────────
+
+const XSS = '<script>alert(1)</script>'
+
+describe('free-text sanitisation', () => {
+  it('sanitizes worker bio on create before it reaches the service', async () => {
+    ;(workerService.createWorkerWithMedia as any).mockResolvedValue(worker)
+    const req = { body: { name: 'Alice', bio: XSS }, user: { id: 'c1' } } as any
+    const res = makeRes()
+    await createWorker(req, res)
+    const passed = (workerService.createWorkerWithMedia as any).mock.calls[0][0]
+    expect(passed.bio).not.toContain('<script>')
+    expect(passed.bio).toBe(sanitizeString(XSS))
+  })
+
+  it('sanitizes worker bio on update before it reaches the service', async () => {
+    ;(workerService.updateWorkerWithMedia as any).mockResolvedValue(worker)
+    const req = { params: { id: 'w1' }, body: { bio: XSS }, user: { id: 'c1' } } as any
+    const res = makeRes()
+    await updateWorker(req, res)
+    const passed = (workerService.updateWorkerWithMedia as any).mock.calls[0][1]
+    expect(passed.bio).not.toContain('<script>')
+    expect(passed.bio).toBe(sanitizeString(XSS))
+  })
+
+  it('sanitizes worker name on create before it reaches the service', async () => {
+    ;(workerService.createWorkerWithMedia as any).mockResolvedValue(worker)
+    const req = { body: { name: XSS }, user: { id: 'c1' } } as any
+    const res = makeRes()
+    await createWorker(req, res)
+    const passed = (workerService.createWorkerWithMedia as any).mock.calls[0][0]
+    expect(passed.name).not.toContain('<script>')
+    expect(passed.name).toBe(sanitizeString(XSS))
+  })
+
+  it('does not return a raw script tag in the response payload', async () => {
+    ;(workerService.createWorkerWithMedia as any).mockResolvedValue({ ...worker, bio: sanitizeString(XSS) })
+    const req = { body: { name: 'Alice', bio: XSS }, user: { id: 'c1' } } as any
+    const res = makeRes()
+    await createWorker(req, res)
+    const body = (res.json as any).mock.calls[0][0]
+    expect(JSON.stringify(body)).not.toContain('<script>')
   })
 })

@@ -1,5 +1,6 @@
 "use client";
 
+import LoadingState from "@/components/LoadingState";
 import { useEffect, useState } from "react";
 import { Bell, Check, CheckCheck, Trash2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -82,9 +83,7 @@ export default function NotificationCentrePage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-20">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-        </div>
+        <LoadingState variant="list" />
       ) : notifications.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-3 py-20 text-gray-400">
           <Bell size={40} className="opacity-30" />

@@ -1,5 +1,6 @@
 "use client";
 
+import LoadingState from "@/components/LoadingState";
 import { MessageSquare, Plus, User } from "lucide-react";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import type { Conversation } from "@/types";
@@ -31,9 +32,7 @@ export default function ConversationList({
 
       <div className="flex-1 overflow-y-auto">
         {loading ? (
-          <div className="flex justify-center py-10">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-          </div>
+          <LoadingState variant="list" />
         ) : conversations.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-10 text-gray-400">
             <MessageSquare size={24} className="opacity-30" />
